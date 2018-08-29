@@ -62,7 +62,6 @@ class Handler extends ExceptionHandler
             return response()->json(['error' => 'Unauthenticated.'], 401);
         }
 
-        // config for multiple authentication
         $guard = array_get($exception->guards(), 0);
 
         switch ($guard) {
@@ -73,7 +72,6 @@ class Handler extends ExceptionHandler
                 $login = 'login';
                 break;
         }
-        // end - config for multiple authentication
 
         return redirect()->guest(route($login));
     }

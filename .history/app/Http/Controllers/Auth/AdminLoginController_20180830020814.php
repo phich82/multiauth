@@ -22,7 +22,7 @@ class AdminLoginController extends Controller
      */
     public function __construct()
     {
-        $this->middleware('guest:admin')->except('logout');
+        $this->middleware('guest:admin');
     }
 
     /**
@@ -120,7 +120,7 @@ class AdminLoginController extends Controller
      */
     public function logout(Request $request)
     {
-        Auth::guard('admin')->logout();
+        $this->guard()->logout();
 
         $request->session()->invalidate();
 
