@@ -27,4 +27,4 @@ Route::prefix('admin')->group(function () {
     Route::get('/logout', 'Auth\AdminLoginController@logout')->name('admin.logout');
 });
 
-Route::get('datepicker', 'TestController@showDatePicker');
+//Route::controller('datepicker', 'TestController@showDatePicker');

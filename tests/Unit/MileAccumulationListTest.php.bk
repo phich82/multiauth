@@ -1,0 +1,1632 @@
+<?php
+
+namespace Tests\Unit\MileSetting;
+
+use App\Api\Facades\Api;
+use App\Models\Area;
+use DOMDocument;
+use DOMXPath;
+use Tests\TestCase;
+use App\Models\Mile;
+use Tests\StubAccount;
+use App\Models\Promotion;
+use App\Repositories\MileRepository;
+use Illuminate\Foundation\Testing\WithFaker;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+
+/**
+ * Screen: ANA_MileSetting_Accumulation_ListScreen
+ * @author Phat Huynh Nguyen <huynh.phat@mulodo.com>
+ */
+class MileAccumulationListTest extends TestCase
+{
+    use DatabaseTransactions;
+    use StubAccount;
+
+    /**
+     * @var MileRepository
+     */
+    private $mileRepo;
+
+    /**
+     * @var int
+     */
+    private static $mileType;
+
+    /**
+     * @var string
+     */
+    private static $url;
+
+    private $activityDetail;
+
+    /**
+     * @inheritDoc
+     */
+    protected function setUp()
+    {
+        parent::setUp();
+
+        self::$mileType = \Constant::MILE_ACCUMULATION;
+        self::$url = route('admin.mile.index');
+        $this->mileRepo = new MileRepository();
+
+        if ($this->activityDetail === null) {
+            $this->mockApi();
+            Mile::query()->delete();
+            Promotion::query()->delete();
+        }
+
+        $this->prepareData();
+    }
+
+    /**
+     * [TestCase-1.1] Test redirect to login page when login failed
+     *
+     * Condition:
+     * - Authenticate a user with the wrong information of login
+     *
+     * Expectation:
+     * - Redirect to the login page (/management/login)
+     */
+    public function test11RedirectToLoginPageWhenLoginFailed()
+    {
+        $this->get(self::$url)
+             ->assertRedirect(route('admin.login'));
+    }
+
+    /**
+     * [TestCase-1.2] Test access to mile accumulation page when login successfully
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Url of Mile Accumulation List Page (/management/mileage/accumulation)
+     *
+     * Expectation:
+     * - See text: 'マイル積算'
+     */
+    public function test12AccessToMileAccumulationListPageWhenLoggedIn()
+    {
+        $this->checkLogin();
+
+        $this->get(self::$url)
+             ->assertSee('マイル積算');
+    }
+
+    /**
+     * [TestCase-1.3] Test redirect to mile redemption page when click on the link 'マイル償還'
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Click on the link 'マイル償還' on screen
+     *
+     * Expectation:
+     * - Redirect to Mile Redemption List Page (/management/mileage/redemption)
+     * - See text: 'マイル償還'
+     */
+    public function test13RedirectToMileRedemptionListPageWhenClickOnLinkRedemption()
+    {
+        $this->checkLogin();
+
+        $urlMileRedemptionList = route('admin.mile.redemption.index');
+
+        $this->get($urlMileRedemptionList)
+             ->assertSee('マイル償還');
+    }
+
+    /**
+     * [TestCase-1.4.1] Test no display mile current basic setting information when database empty
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Database is empty
+     *
+     * Expectation:
+     * - Current setting is null
+     * - Do not see: '{amount}円=1マイル' & '({plan_start_date}以降)'
+     */
+    public function test141NoDisplayMileCurrentBasicSettingWhenDatabaseEmpty()
+    {
+        $this->checkLogin();
+
+        Mile::query()->delete();
+
+        $currentSetting = $this->mileRepo->getCurrentSetting(self::$mileType);
+
+        $this->assertNull($currentSetting);
+        $this->get(self::$url)
+             ->assertViewHas('currentSetting', null);
+    }
+
+    /**
+     * [TestCase-1.4.2] Test no display mile current basic setting information when returned data empty
+     *
+     * Condition:
+     * - Authenticate a user as admin
+     * - Database is not empty
+     * - Returned data is empty
+     *
+     * Expectation:
+     * - Current setting is null
+     * - Do not see: '{amount}円=1マイル' & '({plan_start_date}以降)'
+     */
+    public function test142NoDisplayMileCurrentBasicSettingWhenReturnedDataEmpty()
+    {
+        $this->checkLogin();
+
+        Mile::query()->delete();
+
+        // create the redemption mile basic setting
+        factory(Mile::class)->create([
+            'plan_start_date' => date('Y-m-d'),
+            'amount' => 100,
+            'mile_type' => \Constant::MILE_REDEMPTION,
+        ]);
+
+        $currentSetting = $this->mileRepo->getCurrentSetting(self::$mileType);
+
+        $this->assertNull($currentSetting);
+
+        $this->get(self::$url)
+             ->assertViewHas('currentSetting', null);
+    }
+
+    /**
+     * [TestCase-1.5] Test display mile current basic setting information when database not empty
+     *
+     * Condition:
+     * - Authenticate a user as admin
+     * - Database is not empty
+     * - Returned data is not empty
+     * - Mile type is accumulation
+     *
+     * Expectation:
+     * - Current setting is not empty
+     * - See information: '{number}円=1マイル' & '({date}以降)'
+     */
+    public function test15DisplayMileCurrentBasicSetting()
+    {
+        $this->checkLogin();
+
+        $currentSetting = $this->mileRepo->getCurrentSetting(self::$mileType);
+
+        $this->assertNotNull($currentSetting);
+        $this->get(self::$url)
+             ->assertSee((string)$currentSetting->amount)
+             ->assertSee($currentSetting->plan_start_date);
+    }
+
+    /**
+     * [TestCase-1.6.1] Test no display mile schedule basic setting information when database empty
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Database is empty
+     *
+     * Expectation:
+     * - Schedule setting is null
+     * - Do not see: '{plan_start_date} より　{amount}円＝1マイル'
+     */
+    public function test161NoDisplayMileScheduleBasicSettingWhenDatabaseEmpty()
+    {
+        $this->checkLogin();
+
+        Mile::query()->delete();
+
+        $scheduleSetting = $this->mileRepo->getScheduleSetting(self::$mileType);
+
+        $this->assertNull($scheduleSetting);
+
+        $this->get(self::$url)
+             ->assertViewHas('scheduleSetting', null);
+    }
+
+    /**
+     * [TestCase-1.6.2] Test no display mile schedule basic setting information when the returned data empty
+     *
+     * Condition:
+     * - Authenticate a user as admin
+     * - Database is not empty
+     * - Returned data is empty
+     *
+     * Expectation:
+     * - Schedule setting is null
+     * - Do not see: '{plan_start_date} より　{amount}円=1マイル'
+     */
+    public function test162NoDisplayMileScheduleBasicSettingWhenReturnedDataEmpty()
+    {
+        $this->checkLogin();
+
+        Mile::query()->delete();
+
+        // create the accumulation mile current setting
+        factory(Mile::class)->create([
+            'plan_start_date' => date('Y-m-d'),
+            'amount' => 150,
+            'mile_type' => \Constant::MILE_ACCUMULATION,
+        ]);
+        // create the redemption mile schedule setting
+        factory(Mile::class)->create([
+            'plan_start_date' => date('Y-m-d', strtotime(date('Y-m-d')) + 4*24*60*60),
+            'amount' => 200,
+            'mile_type' => \Constant::MILE_REDEMPTION,
+        ]);
+
+        $scheduleSetting = $this->mileRepo->getScheduleSetting(self::$mileType);
+
+        $this->assertNull($scheduleSetting);
+
+        $this->get(self::$url)
+             ->assertViewHas('scheduleSetting', null);
+    }
+
+    /**
+     * [TestCase-1.7] Test display mile schedule basic setting information when returned data not empty
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Returned data is not empty
+     * - Mile type is accumulation
+     *
+     * Expectation:
+     * - Display information: '{plan_start_date} より　{amount}円=1マイル'
+     */
+    public function test17DisplayMileScheduleBasicSetting()
+    {
+        $this->checkLogin();
+
+        Mile::query()->delete();
+
+        $curTime = strtotime(date('Y-m-d'));
+        // create 2 the accumulation mile schedule settings
+        factory(Mile::class)->create([
+            'plan_start_date' => date('Y-m-d', $curTime + 2*24*60*60),
+            'amount' => 150,
+            'mile_type' => \Constant::MILE_ACCUMULATION,
+        ]);
+        factory(Mile::class)->create([
+            'plan_start_date' => date('Y-m-d', $curTime + 4*24*60*60),
+            'amount' => 200,
+            'mile_type' => \Constant::MILE_ACCUMULATION,
+        ]);
+
+        $scheduleSetting = $this->mileRepo->getScheduleSetting(self::$mileType);
+
+        $this->assertNotNull($scheduleSetting);
+        $this->get(self::$url)
+             ->assertSee((string)$scheduleSetting->amount)
+             ->assertSee($scheduleSetting->plan_start_date);
+    }
+
+    /**
+     * [TestCase-1.8] Test no display the link Edit Mile Schedule Setting when login as operator
+     *
+     * Condition:
+     * - Authenticate a user as operator
+     * - Database is not empty
+     *
+     * Expectation:
+     * - Do not see the link '編集' at area Schedule Basic Setting
+     */
+    public function test18NoDisplayLinkEditScheduleSettingWhenLoginAsOperator()
+    {
+        // login as operator
+        $this->checkLogin(false);
+
+        Mile::query()->delete();
+
+        // create the accumulation mile schedule settings
+        factory(Mile::class)->create([
+            'plan_start_date' => date('Y-m-d', strtotime(date('Y-m-d')) + 2*24*60*60),
+            'amount' => 150,
+            'mile_type' => \Constant::MILE_ACCUMULATION,
+        ]);
+
+        $scheduleSetting = $this->mileRepo->getScheduleSetting(self::$mileType);
+        $linkEdit = route('admin.mile.basic');
+
+        $this->assertNotNull($scheduleSetting);
+        $this->get(self::$url)
+             ->assertDontSee($linkEdit);
+    }
+
+    /**
+     * [TestCase-1.9] Test display the link Edit Mile Schedule Setting when login as admin
+     *
+     * Condition:
+     * - Authenticate a user as admin
+     * - Database is not empty
+     *
+     * Expectation:
+     * - See the link: '編集'
+     */
+    public function test19DisplayLinkEditScheduleSettingWhenLoginAsAdmin()
+    {
+        $this->checkLogin();
+
+        Mile::query()->delete();
+
+        // create the accumulation mile schedule settings
+        factory(Mile::class)->create([
+            'plan_start_date' => date('Y-m-d', strtotime(date('Y-m-d')) + 2*24*60*60),
+            'amount' => 150,
+            'mile_type' => \Constant::MILE_ACCUMULATION,
+        ]);
+
+        $scheduleSetting = $this->mileRepo->getScheduleSetting(self::$mileType);
+        $linkEdit = route('admin.mile.basic');
+
+        $this->assertNotNull($scheduleSetting);
+        $this->get(self::$url)
+             ->assertSee($linkEdit);
+    }
+
+    /**
+     * [TestCase-1.10] Test display 0 results of promotions when database empty
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Database is empty
+     * - Total of records per page (perPage) is 20
+     *
+     * Expectation:
+     * - Total of the returned records is zero
+     * - See a result text: '0 件'
+     */
+    public function test110DisplayZeroResultsOfPromotionsWhenDatabaseEmpty()
+    {
+        $this->checkLogin();
+
+        Promotion::query()->delete();
+
+        $params = ['limit' => 20, 'sortActivityPurchase' => 1];
+        $response = $this->ajax(self::$url, 'GET', $params)->getOriginalContent();
+
+        $this->assertEquals(0, $response['total']);
+    }
+
+    /**
+     * [TestCase-1.11] Test display total of the returned promotions results
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Return data is not empty
+     *
+     * Expectation:
+     * - Total of the returned records is greater than 0
+     * - See a result text: '{totalRecords} 件'
+     */
+    public function test111DisplayTotalOfReturnedPromotionsResults()
+    {
+        $this->checkLogin();
+
+        $params = ['limit' => 20, 'sortActivityPurchase' => 1];
+        $response = $this->ajax(self::$url, 'GET', $params)->getOriginalContent();
+
+        $this->assertGreaterThanOrEqual(1, $response['total']);
+    }
+
+    /**
+     * [TestCase-1.15] Test display a link create new promotion when login as admin
+     *
+     * Condition:
+     * - Authenticate a user as admin
+     * - Access to Mile Redemption List Page (/management/mileage/redemption)
+     *
+     * Expectation:
+     * - See text: '新規プロモーションを作成'
+     */
+    public function test115DisplayALinkCreateNewPromotionWhenLoginAsAdmin()
+    {
+        $this->checkLogin();
+
+        $linkInsert = route('admin.mile.promotion.create');
+
+        $this->get(self::$url)
+             ->assertSee($linkInsert)
+             ->assertSee('新規プロモーションを作成');
+    }
+
+    /**
+     * [TestCase-1.16] Test no display a link create new promotion when login as operator
+     *
+     * Condition:
+     * - Authenticate a user as operator
+     * - Access to Mile Redemption List Page (/management/mileage/redemption)
+     *
+     * Expectation:
+     * - Do not see text: '新規プロモーションを作成'
+     */
+    public function test116NoDisplayALinkCreateNewPromotionWhenLoginAsOperator()
+    {
+        $this->checkLogin(false); // login as operator
+
+        $linkInsert = route('admin.mile.promotion.create');
+
+        $this->get(self::$url)
+             ->assertDontSee($linkInsert)
+             ->assertDontSee('新規プロモーションを作成');
+    }
+
+    /**
+     * [TestCase-1.17] Test redirect to Accumulation New Promotion Page when click on button 'New Promotion'
+     *
+     * Condition:
+     * - Authenticate a user as admin
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Click on button 'New Promotion' (新規プロモーションを作成)
+     *
+     * Expectation:
+     * - See url 'management/mileage/accumulation/promotions/create'
+     * - See text 'マイル積算 - プロモーション'
+     */
+    public function test117RedirectToNewPromotionPageWhenClickOnNewPromotionButton()
+    {
+        $this->checkLogin();
+
+        $urlNewPromotion = route('admin.mile.promotion.create');
+
+        $this->get($urlNewPromotion)
+             ->assertSee('マイル積算 - プロモーション');
+    }
+
+    /**
+     * [TestCase-1.18] Test redirect to Accumulation Edit Basic Setting Page when click on button 'Edit Schedule Basic Setting'
+     *
+     * Condition:
+     * - Authenticate a user as admin
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Click on button 'Edit Schedule Basic Setting' (編集)
+     *
+     * Expectation:
+     * - See url 'management/mileage/accumulation/basic-setting'
+     * - See text: 'マイル積算 - 基本設定変更'
+     */
+    public function test118RedirectToEditBasicSettingPageWhenClickOnEditButton()
+    {
+        $this->checkLogin();
+
+        $urlBasicSetting = route('admin.mile.basic');
+
+        $this->get($urlBasicSetting)
+             ->assertSee('マイル積算 - 基本設定変更');
+    }
+
+    /**
+     * [TestCase-1.19] Test display the promotion list
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Returned data is not empty
+     *
+     * Expectation:
+     * - Total of the returned records is greater than 0
+     * - See the promotion list
+     * - Do not see text '指定された条件では見つかりませんでした'
+     * - Do not see text '正しくキーワードや数値を入力してください。または、検索条件を変更してください。'
+     */
+    public function test119DisplayPromotionList()
+    {
+        $this->checkLogin();
+
+        $params = ['limit' => 20, 'sortActivityPurchase' => 1];
+        $response = $this->ajax(self::$url, 'GET', $params)->getOriginalContent();
+
+        $this->assertGreaterThanOrEqual(1, $response['total']);
+        $this->assertFalse(stripos($response['list'], '指定された条件では見つかりませんでした'));
+        $this->assertFalse(stripos($response['list'], '正しくキーワードや数値を入力してください。または、検索条件を変更してください。'));
+    }
+
+    /**
+     * [TestCase-1.20] Test no display the promotion list
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Returned data is empty
+     *
+     * Expectation:
+     * - Total of the returned records is zero
+     * - Do not see: the promotion list
+     * - See text '指定された条件では見つかりませんでした'
+     * - See text '正しくキーワードや数値を入力してください。または、検索条件を変更してください。'
+     */
+    public function test120NoDisplayPromotionList()
+    {
+        $this->checkLogin();
+
+        Promotion::query()->delete();
+
+        $params = ['limit' => 20, 'sortActivityPurchase' => 1];
+        $response = $this->ajax(self::$url, 'GET', $params)->getOriginalContent();
+
+        $this->assertEquals(0, $response['total']);
+        $this->assertTrue(stripos($response['list'], '指定された条件では見つかりませんでした') !== false);
+        $this->assertTrue(stripos($response['list'], '正しくキーワードや数値を入力してください。または、検索条件を変更してください。') !== false);
+    }
+
+    /**
+     * [TestCase-1.21.1] Test display the promotion list from filtering by sorting ASC activity start date
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Database is not empty
+     * - Select a sort type as ASC Activity Start Date (1)
+     *
+     * Expectation:
+     * - See: the promotion list sorted by the selected sort type (1)
+     */
+    public function test1211DisplayPromotionsListByFilteringActivityStartDateAscSort()
+    {
+        $this->checkLogin();
+
+        $params = ['limit' => 20, 'sortActivityPurchase' => 1]; // 1: activity start date by ASC
+        $response = $this->ajax(self::$url, 'GET', $params)->getOriginalContent();
+
+        $this->assertTrue($this->checkSortActivityPurchase($response['list'], 'activity', 'start', 'ASC'));
+    }
+
+    /**
+     * [TestCase-1.21.2] Test display the promotion list from filtering by sorting DESC activity start date
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Database is not empty
+     * - Select a sort type as DESC Activity Start Date (2)
+     *
+     * Expectation:
+     * - See: the promotion list sorted by the selected sort type (2)
+     */
+    public function test1212DisplayPromotionsListByFilteringActivityStartDateDescSort()
+    {
+        $this->checkLogin();
+
+        $params = ['limit' => 20, 'sortActivityPurchase' => 2]; // 2: activity start date by DESC
+        $response = $this->ajax(self::$url, 'GET', $params)->getOriginalContent();
+
+        $this->assertTrue($this->checkSortActivityPurchase($response['list'], 'activity', 'start', 'DESC'));
+    }
+
+    /**
+     * [TestCase-1.21.3] Test display the promotion list from filtering by sorting ASC purchase start date
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Database is not empty
+     * - Select a sort type as ASC Purchase Start Date (3)
+     *
+     * Expectation:
+     * - See: the promotion list sorted by the selected sort type (3)
+     */
+    public function test1213DisplayPromotionsListByFilteringPurchaseStartDateAscSort()
+    {
+        $this->checkLogin();
+
+        $params = ['limit' => 20, 'sortActivityPurchase' => 3]; // 3: purchase start date by ASC
+        $response = $this->ajax(self::$url, 'GET', $params)->getOriginalContent();
+
+        $this->assertTrue($this->checkSortActivityPurchase($response['list'], 'purchase', 'start', 'ASC'));
+    }
+
+    /**
+     * [TestCase-1.21.4] Test display the promotion list from filtering by sorting DESC purchase start date
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Database is not empty
+     * - Select a sort type as ASC Purchase Start Date (4)
+     *
+     * Expectation:
+     * - See: the promotion list sorted by the selected sort type (4)
+     */
+    public function test1214DisplayPromotionsListByFilteringPurchaseStartDateDescSort()
+    {
+        $this->checkLogin();
+
+        $params = ['limit' => 20, 'sortActivityPurchase' => 4]; // 2: purchase start date by DESC
+        $response = $this->ajax(self::$url, 'GET', $params)->getOriginalContent();
+
+        $this->assertTrue($this->checkSortActivityPurchase($response['list'], 'purchase', 'start', 'DESC'));
+    }
+
+    /**
+     * [TestCase-1.22] Test display the promotion list from filtering by total of records per page
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Database is not empty
+     * - Select the total of records per page (50) from dropdown
+     *
+     * Expectation:
+     * - See: the promotion list contains 50 rows
+     */
+    public function test122DisplayPromotionsListByFilteringTotalRecordsPerPage()
+    {
+        $this->checkLogin();
+
+        Promotion::query()->delete();
+
+        $totalRecords = 60;
+        $this->createPromotionsRandom($totalRecords);
+
+        $perPage = 50;
+        $params = ['limit' => $perPage, 'sortActivityPurchase' => 1];
+        $response = $this->ajax(self::$url, 'GET', $params)->getOriginalContent();
+        $rows = $this->getDataFromHtml($response['list']);
+
+        $this->assertEquals($perPage, count($rows));
+    }
+
+    /**
+     * [TestCase-1.23.1] Test display the promotion list from filtering by unit
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Database is not empty
+     * - Select 'すべて' (All) from unit dropdown
+     *
+     * Expectation:
+     * - See: the promotion list that each row contains either 'すべて' or 'エリア'
+     */
+    public function test1231DisplayPromotionsListActivityAreaByFilteringUnitAll()
+    {
+        $this->checkLogin();
+
+        Promotion::query()->delete();
+
+        $this->createPromotionsRandom(20);
+
+        $params = ['limit' => 10, 'sortActivityPurchase' => 1];
+        $response = $this->ajax(self::$url, 'GET', $params)->getOriginalContent();
+
+        $this->assertTrue($this->checkFilterByUnit($response['list']), 'all');
+    }
+
+    /**
+     * [TestCase-1.23.2] Test display the promotion list with only activity from filtering by unit
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Database is not empty
+     * - Select '商品' (Activity) from unit dropdown
+     *
+     * Expectation:
+     * - See: the promotion list that each row contains only 'すべて'
+     */
+    public function test1232DisplayPromotionsListOnlyActivityByFilteringUnitActivity()
+    {
+        $this->checkLogin();
+
+        Promotion::query()->delete();
+
+        $this->createPromotionsRandom(20);
+
+        $params = ['limit' => 10, 'sortActivityPurchase' => 1];
+        $response = $this->ajax(self::$url, 'GET', $params)->getOriginalContent();
+
+        $this->assertTrue($this->checkFilterByUnit($response['list']), 'activity');
+    }
+
+    /**
+     * [TestCase-1.23.3] Test display the promotion list with only area from filtering by unit
+     *
+     * Condition:
+     * - Authenticate a user as admin
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Database not empty
+     * - Select 'エリア' (Area) from unit dropdown
+     *
+     * Expectation:
+     * - See: the promotion list that each row contains only 'エリア'
+     */
+    public function test1233DisplayPromotionsListOnlyAreaByFilteringUnitArea()
+    {
+        $this->checkLogin();
+
+        Promotion::query()->delete();
+
+        $this->createPromotionsRandom(20);
+
+        $params = ['limit' => 10, 'sortActivityPurchase' => 1];
+        $response = $this->ajax(self::$url, 'GET', $params)->getOriginalContent();
+
+        $this->assertTrue($this->checkFilterByUnit($response['list']), 'area');
+    }
+
+    /**
+     * [TestCase-1.24.1] Test display the promotion list from filtering by activity/area if found
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Database is not empty
+     * - Enter the input field a value (london) at item '商品・エリア'
+     *
+     * Expectation:
+     * - See: the promotion list that each row contains text 'london'
+     */
+    public function test1241DisplayPromotionsListByFilteringActivityAreaKeywordIfFound()
+    {
+        $this->checkLogin();
+
+        Promotion::query()->delete();
+
+        $this->createPromotionsRandom(20);
+
+        $txtSearch = 'london'; // exists in mock data
+        $params = ['limit' => 10, 'sortActivityPurchase' => 1, 'activityArea' => $txtSearch];
+        $response = $this->ajax(self::$url, 'GET', $params)->getOriginalContent();
+
+        $this->assertTrue($this->checkFilterByActivityArea($response['list'], $txtSearch));
+    }
+
+    /**
+     * [TestCase-1.24.2] Test no display the promotion list from filtering by activity/area if not found
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Database is not empty
+     * - $textSearch = 'blablabla'
+     * - Enter the input field a value ($textSearch) at item '商品・エリア'
+     *
+     * Expectation:
+     * - Do not see: the promotion list (total of records is zero)
+     * - See text '指定された条件では見つかりませんでした'
+     * - See text '正しくキーワードや数値を入力してください。または、検索条件を変更してください。'
+     */
+    public function test1242NoDisplayPromotionsListByFilteringActivityAreaKeywordIfNotFound()
+    {
+        $this->checkLogin();
+
+        Promotion::query()->delete();
+
+        $this->createPromotionsRandom(20);
+
+        $txtSearch = 'blablabla'; // exists in mock data
+        $params = ['limit' => 10, 'sortActivityPurchase' => 1, 'activityArea' => $txtSearch];
+        $response = $this->ajax(self::$url, 'GET', $params)->getOriginalContent();
+
+        $this->assertEquals(0, $response['total']);
+        $this->assertTrue(stripos($response['list'], '指定された条件では見つかりませんでした') !== false);
+        $this->assertTrue(stripos($response['list'], '正しくキーワードや数値を入力してください。または、検索条件を変更してください。') !== false);
+    }
+
+    /**
+     * [TestCase-1.25.1] Test display the promotion list from filtering by period of activity dates if found
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Database is not empty
+     * - $textSearch = current date + 10 days
+     * - Enter the input field a value ($textSearch) at item '期間'
+     *
+     * Expectation:
+     * - See: the promotion list that each row contains:
+     *   + ActivityStartDate < $textSearch if ActivityEndDate null
+     *   + ActivityStartDate < $textSearch < ActivityEndDate if ActivityEndDate not null
+     */
+    public function test1251DisplayPromotionsListByFilteringActivityDatePeriodIfFound()
+    {
+        $this->checkLogin();
+
+        Promotion::query()->delete();
+
+        $this->createPromotionsRandom(20);
+
+        // exists in mock data (current date + 10 days)
+        $periodActivityDateSearch = date('Y-m-d', strtotime(date('Y-m-d')) + 10*24*60*60);
+        $params = ['limit' => 10, 'sortActivityPurchase' => 1, 'activityDate' => $periodActivityDateSearch];
+        $response = $this->ajax(self::$url, 'GET', $params)->getOriginalContent();
+
+        $this->assertTrue($this->checkFilterPeriodDate($response['list'], 'activity', $periodActivityDateSearch));
+    }
+
+    /**
+     * [TestCase-1.25.2] Test no display the promotion list from filtering by period of activity dates if not found
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Database is not empty
+     * - $textSearch = current date - 10 days
+     * - Enter the input field a value ($textSearch) at item '期間'
+     *
+     * Expectation:
+     * - Do not see: the promotion list (total of records is zero)
+     * - See text '指定された条件では見つかりませんでした'
+     * - See text '正しくキーワードや数値を入力してください。または、検索条件を変更してください。'
+     */
+    public function test1252NoDisplayPromotionsListByFilteringActivityDatePeriodIfNotFound()
+    {
+        $this->checkLogin();
+
+        Promotion::query()->delete();
+
+        $this->createPromotionsRandom(20);
+
+        // not exist in mock data (current date - 10 days)
+        $periodActivityDateSearch = date('Y-m-d', strtotime(date('Y-m-d')) - 10*24*60*60);
+        $params = ['limit' => 10, 'sortActivityPurchase' => 1, 'activityDate' => $periodActivityDateSearch];
+        $response = $this->ajax(self::$url, 'GET', $params)->getOriginalContent();
+
+        $this->assertEquals(0, $response['total']);
+        $this->assertTrue(stripos($response['list'], '指定された条件では見つかりませんでした') !== false);
+        $this->assertTrue(stripos($response['list'], '正しくキーワードや数値を入力してください。または、検索条件を変更してください。') !== false);
+    }
+
+    /**
+     * [TestCase-1.25.3] Test no display the promotion list from filtering by period of activity dates if the date period is invalid
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Database is not empty
+     * - $textSearch = 'blablabla'
+     * - Enter the input field a value ($textSearch) at item '期間'
+     *
+     * Expectation:
+     * - Do not see: the promotion list (total of records is zero)
+     * - See text '指定された条件では見つかりませんでした'
+     * - See text '正しくキーワードや数値を入力してください。または、検索条件を変更してください。'
+     */
+    public function test1253NoDisplayPromotionsListByFilteringActivityDatePeriodIfInvalidPeriod()
+    {
+        $this->checkLogin();
+
+        Promotion::query()->delete();
+
+        $this->createPromotionsRandom(20);
+
+        // not exist in mock data (current date - 10 days)
+        $periodActivityDateSearchWrong = date('Y-m-d', strtotime(date('Y-m-d')) + 10*24*60*60).'xxx';
+        $params = ['limit' => 10, 'sortActivityPurchase' => 1, 'activityDate' => $periodActivityDateSearchWrong];
+        $response = $this->ajax(self::$url, 'GET', $params)->getOriginalContent();
+
+        $this->assertEquals(0, $response['total']);
+        $this->assertTrue(stripos($response['list'], '指定された条件では見つかりませんでした') !== false);
+        $this->assertTrue(stripos($response['list'], '正しくキーワードや数値を入力してください。または、検索条件を変更してください。') !== false);
+    }
+
+    /**
+     * [TestCase-1.26.1] Test display the promotion list from filtering by period of purchase dates if found
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Database is not empty
+     * - $textSearch = current date + 10 days
+     * - Enter the input field a value ($textSearch) at item '申し込み日'
+     *
+     * Expectation:
+     * - See: the promotion list that each row contains:
+     *   + PurchaseStartDate < $textSearch if PurchaseEndDate null
+     *   + PurchaseStartDate < $textSearch < PurchaseEndDate if PurchaseEndDate not null
+     */
+    public function test1261DisplayPromotionsListByFilteringPurchaseDatePeriodIfFound()
+    {
+        $this->checkLogin();
+
+        Promotion::query()->delete();
+
+        $this->createPromotionsRandom(20);
+
+        // exists in mock data (current date + 10 days)
+        $periodPurchaseDateSearch = date('Y-m-d', strtotime(date('Y-m-d')) + 10*24*60*60);
+        $params = ['limit' => 10, 'sortActivityPurchase' => 1, 'purchaseDate' => $periodPurchaseDateSearch];
+        $response = $this->ajax(self::$url, 'GET', $params)->getOriginalContent();
+
+        $this->assertTrue($this->checkFilterPeriodDate($response['list'], 'purchase', $periodPurchaseDateSearch));
+    }
+
+    /**
+     * [TestCase-1.26.2] Test no display the promotion list from filtering by period of purchase dates if not found
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Database is not empty
+     * - $textSearch = current date - 10 days
+     * - Enter the input field a value ($textSearch) at item '申し込み日'
+     *
+     * Expectation:
+     * - Do not see: the promotion list (total of records is zero)
+     * - See text '指定された条件では見つかりませんでした'
+     * - See text '正しくキーワードや数値を入力してください。または、検索条件を変更してください。'
+     */
+    public function test1262NoDisplayPromotionsListByFilteringPurchaseDatePeriodIfNotFound()
+    {
+        $this->checkLogin();
+
+        Promotion::query()->delete();
+
+        $this->createPromotionsRandom(20);
+
+        // not exist in mock data (current date - 10 days)
+        $periodPurchaseDateSearch = date('Y-m-d', strtotime(date('Y-m-d')) - 10*24*60*60);
+        $params = ['limit' => 10, 'sortActivityPurchase' => 1, 'purchaseDate' => $periodPurchaseDateSearch];
+        $response = $this->ajax(self::$url, 'GET', $params)->getOriginalContent();
+
+        $this->assertEquals(0, $response['total']);
+        $this->assertTrue(stripos($response['list'], '指定された条件では見つかりませんでした') !== false);
+        $this->assertTrue(stripos($response['list'], '正しくキーワードや数値を入力してください。または、検索条件を変更してください。') !== false);
+    }
+
+    /**
+     * [TestCase-1.26.3] Test no display the promotion list from filtering by period of purchase dates if the date period is invalid
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Database is not empty
+     * - $textSearch = 'blablabla'
+     * - Enter the input field a value ($textSearch) at item '申し込み日'
+     *
+     * Expectation:
+     * - Do not see: the promotion list (total of records is zero)
+     * - See text '指定された条件では見つかりませんでした'
+     * - See text '正しくキーワードや数値を入力してください。または、検索条件を変更してください。'
+     */
+    public function test1263NoDisplayPromotionsListByFilteringPurchaseDatePeriodIfInvalidPeriod()
+    {
+        $this->checkLogin();
+
+        Promotion::query()->delete();
+
+        $this->createPromotionsRandom(20);
+
+        // not exist in mock data (current date - 10 days)
+        $periodPurchaseDateSearchWrong = date('Y-m-d', strtotime(date('Y-m-d')) + 10*24*60*60).'xxx';
+        $params = ['limit' => 10, 'sortActivityPurchase' => 1, 'purchaseDate' => $periodPurchaseDateSearchWrong];
+        $response = $this->ajax(self::$url, 'GET', $params)->getOriginalContent();
+
+        $this->assertEquals(0, $response['total']);
+        $this->assertTrue(stripos($response['list'], '指定された条件では見つかりませんでした') !== false);
+        $this->assertTrue(stripos($response['list'], '正しくキーワードや数値を入力してください。または、検索条件を変更してください。') !== false);
+    }
+
+    /**
+     * [TestCase-1.27] Test no display the link edit promotion on each row of the promotion list
+     *
+     * Condition:
+     * - Authenticate a user as operator
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Database is not empty
+     *
+     * Expectation:
+     * - Do not see: the link edit promotion '編集' on each row of the promotion list
+     */
+    public function test127NoDisplayLinkEditPromotionWhenLoginAsOperator()
+    {
+        $this->checkLogin(false); // login as operator
+
+        Promotion::query()->delete();
+
+        $this->createPromotionsRandom(20);
+
+        $params = ['limit' => 10, 'sortActivityPurchase' => 1];
+        $response = $this->ajax(self::$url, 'GET', $params)->getOriginalContent();
+
+        $this->assertTrue($this->checkDisplayLinkEditPromotion($response['list'], ''));
+    }
+
+    /**
+     * [TestCase-1.28] Test display the link edit promotion on each row of the promotion list
+     *
+     * Condition:
+     * - Authenticate a user as admin
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Database is not empty
+     *
+     * Expectation:
+     * - See: the link edit promotion '詳細' on each row of the promotion list
+     */
+    public function test128DisplayLinkEditPromotionWhenLoginAsAdmin()
+    {
+        $this->checkLogin();
+
+        Promotion::query()->delete();
+
+        $this->createPromotionsRandom(20);
+
+        $params = ['limit' => 10, 'sortActivityPurchase' => 1];
+        $response = $this->ajax(self::$url, 'GET', $params)->getOriginalContent();
+
+        $this->assertTrue($this->checkDisplayLinkEditPromotion($response['list'], '詳細'));
+    }
+
+    /**
+     * [TestCase-1.29] Test redirect to Update/Delete promotion page when click on the link edit promotion '編集'
+     *
+     * Condition:
+     * - Authenticate a user as admin
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Database is not empty
+     * - Click on the link edit promotion '編集'
+     *
+     * Expectation:
+     * - Redirect to Update/Delete Promotion page:
+     *   + See a header text 'マイル積算 - プロモーション'
+     *   + See a link 'このプロモーションを削除する'
+     */
+    public function test129RedirectToEitPromotionPageWhenClickOnLinkEditPromotion()
+    {
+        $this->checkLogin();
+
+        $curTime = strtotime(date('Y-m-d'));
+        $promotion = factory(Promotion::class)->create([
+            'activity_id'         => null,
+            'activity_title'      => null,
+            'area_path'           => 'europe/uk/london/',
+            'unit'                => \Constant::UNIT_AREA,
+            'amount'              => 130,
+            'activity_start_date' => date('Y-m-d', $curTime + 7*24*60*60),
+            'activity_end_date'   => null,
+            'purchase_start_date' => date('Y-m-d', $curTime + 20*24*60*60),
+            'purchase_end_date'   => null,
+            'mile_type'           => self::$mileType,
+            'rate_type'           => \Constant::ACCUMULATION_RATE_TYPE_VARIABLE,
+            'created_user'        => 'admin@gmail.com',
+        ]);
+
+        $urlUpdateDeletePromotion = route('admin.mile.promotion.edit', [$promotion->promotion_id]);
+
+        $this->get($urlUpdateDeletePromotion)
+             ->assertSee('マイル積算 - プロモーション')
+             ->assertSee('このプロモーションを削除する');
+    }
+
+    /**
+     * [TestCase-1.30] Test no display the links of pagination when total of the returned records less than total of records per page
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Database is empty
+     *
+     * Expectation:
+     * - Do not see: the links of pagination
+     */
+    public function test130NoDisplayLinksPaginationWhenTotalRecordsLessThanRecordsPerPage()
+    {
+        $this->checkLogin();
+
+        Promotion::query()->delete();
+
+        $totalRecords = 15;
+        $this->createPromotionsRandom($totalRecords);
+
+        $perPage = 20;
+        $params = ['limit' => $perPage, 'sortActivityPurchase' => 1];
+        $response = $this->ajax(self::$url, 'GET', $params)->getOriginalContent();
+        $pagination = $this->getDataPagination($response['links']);
+
+        $this->assertLessThan($perPage, $totalRecords);
+        $this->assertTrue(empty($pagination['buttons']));
+    }
+
+    /**
+     * [TestCase-1.31] Test display the links of pagination when total of records greater than total of records per page
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Database is not empty (45 records)
+     *
+     * Expectation:
+     * - See: the links of pagination [1] [2] [3]
+     */
+    public function test131DisplayLinksPaginationWhenTotalRecordsGreaterThanRecordsPerPage()
+    {
+        $this->checkLogin();
+
+        Promotion::query()->delete();
+
+        $totalRecords = 45;
+        $this->createPromotionsRandom($totalRecords);
+
+        $perPage = 20;
+        $totalPages = (int)ceil($totalRecords/$perPage);
+        $params = ['limit' => $perPage, 'sortActivityPurchase' => 1];
+        $response = $this->ajax(self::$url, 'GET', $params)->getOriginalContent();
+
+        $this->assertGreaterThan($perPage, $totalRecords);
+        $this->assertTrue(!empty($response['links']));
+
+        $pagination = $this->getDataPagination($response['links']);
+
+        $this->assertEquals($totalPages, count($pagination['buttons']));
+    }
+
+    /**
+     * [TestCase-1.32] Test display promotion list when click on each link of pagination
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Database is not empty (45 records)
+     * - Click on each link of pagination (2)
+     *
+     * Expectation:
+     * - See: the new promotion list will be shown &
+     *        it is not same as the previous promotion list
+     */
+    public function test132DisplayPromotionListWhenClickOnLinkPagination()
+    {
+        $this->checkLogin();
+
+        Promotion::query()->delete();
+
+        $this->createPromotionsRandom(45);
+
+        // get the promotion list when click on link 1 of pagination (page = 1)
+        $params1 = ['limit' => 20, 'sortActivityPurchase' => 1, 'page' => 1];
+        $response1 = $this->ajax(self::$url, 'GET', $params1)->getOriginalContent();
+
+        // get the promotion list when click on link 2 of pagination (page = 2)
+        $params2 = ['limit' => 20, 'sortActivityPurchase' => 1, 'page' => 2];
+        $response2 = $this->ajax(self::$url, 'GET', $params2)->getOriginalContent();
+
+        $this->assertFalse($response1['list'] == $response2['list']);
+    }
+
+    /**
+     * [TestCase-1.33] Test display the summary result at bottom-right screen when total of the returned records greater than total of records per page
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Database is not empty
+     * - Total of records is 45
+     * - Total of records per page is 20
+     *
+     * Expectation:
+     * - See: '45 件中 1-20 を表示'
+     */
+    public function test133DisplaySummaryResultWhenTotalRecordsGreaterThanRecordsPerPage()
+    {
+        $this->checkLogin();
+
+        Promotion::query()->delete();
+
+        $totalRecords = 45;
+        $this->createPromotionsRandom($totalRecords);
+
+        $perPage = 20;
+        $page = 2;
+        $params = ['limit' => $perPage, 'sortActivityPurchase' => 1, 'page' => $page];
+        $response = $this->ajax(self::$url, 'GET', $params)->getOriginalContent();
+        $pagination = $this->getDataPagination($response['links']);
+        $summary = $pagination['summary'];
+        // canculate the start record and the end record of pagination
+        $fromRecord = ($page - 1) * $perPage + 1;
+        $recordsRemain = $totalRecords - ($page - 1) * $perPage;
+        $toRecord = $fromRecord + ($recordsRemain < $perPage ? $recordsRemain : $perPage) - 1;
+
+        $this->assertEquals($totalRecords, $summary[0]); // total of records
+        $this->assertEquals($fromRecord, $summary[1]); // fromRecord
+        $this->assertEquals($toRecord, $summary[2]); // toRecord
+    }
+
+    /**
+     * [TestCase-1.34] Test no display the summary result at bottom-right screen when total of the returned records less than total of records per page
+     *
+     * Condition:
+     * - Authenticate a user
+     * - Access to Mile Accumulation List Page (/management/mileage/accumulation)
+     * - Database is not empty
+     * - Total of records per page (perPage) is 20
+     * - Total of records (totalRecords) is 15
+     *
+     * Expectation:
+     * - Do not see: '{number} 件中 {number}-{number} を表示'
+     */
+    public function test134NoDisplaySummaryResultWhenTotalRecordsLessThanRecordsPerPage()
+    {
+        $this->checkLogin();
+
+        Promotion::query()->delete();
+
+        $totalRecords = 15;
+        $this->createPromotionsRandom($totalRecords);
+
+        $perPage = 20;
+        $params = ['limit' => $perPage, 'sortActivityPurchase' => 1];
+        $response = $this->ajax(self::$url, 'GET', $params)->getOriginalContent();
+        $pagination = $this->getDataPagination($response['links']);
+
+        $this->assertLessThan($perPage, $totalRecords);
+        $this->assertTrue(empty($pagination['summary']));
+    }
+
+    /**
+     * authenticate a given user as the current user
+     *
+     * default: login as admin
+     *
+     * @param bool $isAdmin
+     * @return void
+     */
+    private function checkLogin($isAdmin = true)
+    {
+        $this->actingAs($isAdmin ? $this->createAdmin() : $this->createOperator());
+    }
+
+    /**
+     * Create the promotions with the given total
+     * @param int $totalRecords
+     */
+    private function createPromotionsRandom($totalRecords = 1)
+    {
+        $totalRecords = $totalRecords < 0 || !is_int($totalRecords) ? 1 : $totalRecords;
+        $curTime = strtotime(date('Y-m-d'));
+        $amounts = range(1, 200);
+        $units   = [\Constant::UNIT_AREA, \Constant::UNIT_ACTIVITY];
+
+        for ($i = 0; $i < $totalRecords; $i++) {
+            $unit = $units[array_rand($units)];
+            factory(Promotion::class)->create([
+                'activity_id'         => $unit == \Constant::UNIT_ACTIVITY ? 'VELTRA-10474' : null,
+                'activity_title'      => $unit == \Constant::UNIT_ACTIVITY ? 'バトー・ロンドン(Bateaux London)☆お得に一流サービスを！テムズ川ランチクルーズ' : null,
+                'area_path'           => $unit == \Constant::UNIT_AREA ? 'europe/uk/london/' : null,
+                'unit'                => $unit,
+                'amount'              => $amounts[array_rand($amounts)],
+                'activity_start_date' => date('Y-m-d', $curTime + ($i+1)*24*60*60),
+                'activity_end_date'   => null,
+                'purchase_start_date' => date('Y-m-d', $curTime + ($i+5)*24*60*60),
+                'purchase_end_date'   => null,
+                'mile_type'           => self::$mileType,
+                'rate_type'           => \Constant::ACCUMULATION_RATE_TYPE_VARIABLE,
+                'created_user'        => 'admin@gmail.com',
+            ]);
+        }
+    }
+
+    /**
+     * mock the restful api
+     */
+    private function mockApi()
+    {
+        $activityData = json_decode(file_get_contents(base_path('tests/json/getActivityDetail.json')));
+        $activitiesSearchByIds = json_decode(file_get_contents(base_path('tests/json/getSearchActivities.json')));
+
+        Api::shouldReceive('request')
+            ->with('get-activity-details', \Mockery::any())
+            ->andReturn($activityData);
+
+        Api::shouldReceive('request')
+            ->with('search-activities', \Mockery::any())
+            ->andReturn($activitiesSearchByIds);
+
+        $this->activityDetail = $activityData;
+    }
+
+    /**
+     * Check display the link EditPromotion
+     *
+     * @param string $html
+     * @param string $linkEdit
+     * @return bool
+     */
+    private function checkDisplayLinkEditPromotion($html, $linkEdit = '')
+    {
+        $data = $this->getDataFromHtml($html);
+        $rows = $data->pluck('link')->all();
+
+        $flag = true;
+        foreach ($rows as $link) {
+            if (trim($link) !== $linkEdit) {
+                $flag = false;
+                break;
+            }
+        }
+        return $flag;
+    }
+
+    /**
+     * Check sort by activity start date asc|desc
+     *
+     * @param string $html
+     * @param string $type [activity|purchase]
+     * @param string $periodDate
+     * @return bool
+     */
+    private function checkFilterPeriodDate($html, $type = 'activity', $periodDate)
+    {
+        $type  = $type === 'activity' ? 'period_activity' : 'period_purchase';
+        $empty = ['期限なし', '', null];
+        $data  = $this->getDataFromHtml($html);
+        $rows  = $data->pluck($type)->all();
+
+        $flag = true;
+        foreach ($rows as $k => $period) {
+            $datesActivity = explode('~', $period);
+            $startDate = $datesActivity[0];
+            $endDate = isset($datesActivity[1]) ? $datesActivity[1] : null;
+
+            if (in_array($endDate, $empty)) {
+                $endDate = null;
+            }
+
+            if ($endDate) {
+                if (strtotime(date($startDate)) > strtotime(date($periodDate)) || strtotime(date($periodDate)) > strtotime(date($endDate))) {
+                    $flag = false;
+                    break;
+                }
+            } else {
+                if (strtotime(date($startDate)) > strtotime(date($periodDate))) {
+                    $flag = false;
+                    break;
+                }
+            }
+        }
+        return $flag;
+    }
+
+    /**
+     * check filtering by unit [all|area|activity]
+     *
+     * @param string $html
+     * @param string $txtSearch
+     * @return bool
+     */
+    private function checkFilterByActivityArea($html, $txtSearch)
+    {
+
+        $data = $this->getDataFromHtml($html);
+        $rows = $data->pluck('activity_title')->all();
+
+        $flag = true;
+        foreach ($rows as $title) {
+            if (stripos($title, $txtSearch) === false) {
+                $flag = false;
+                break;
+            }
+        }
+        return $flag;
+    }
+
+    /**
+     * check filtering by unit [all|area|activity]
+     *
+     * @param string $html
+     * @param string $type
+     * @return bool
+     */
+    private function checkFilterByUnit($html, $type = 'all')
+    {
+        $type = strtolower($type);
+        $units = [
+            'all'      => ['エリア', '商品'],
+            'area'     => ['エリア'],
+            'activity' => ['商品']
+        ];
+        $data = $this->getDataFromHtml($html);
+        $rows = $data->pluck('unit')->all();
+
+        $flag = true;
+        foreach ($rows as $unit) {
+            if (!in_array(trim($unit), $units[$type])) {
+                $flag = false;
+                break;
+            }
+        }
+        return $flag;
+    }
+
+    /**
+     * Check sort by activity|purchase start date asc|desc
+     *
+     * @param string $html
+     * @param string $type [activity|purchase]
+     * @param string $time [start|end]
+     * @param string $sort [asc|desc]
+     * @return bool
+     */
+    private function checkSortActivityPurchase($html, $type = 'activity', $time = 'start', $sort = 'asc')
+    {
+        $type  = $type === 'activity' ? 'period_activity' : 'period_purchase';
+        $sort  = strtolower($sort);
+        $time  = strtolower($time);
+        $empty = ['期限なし', '', null];
+        $data  = $this->getDataFromHtml($html);
+        $rows  = $data->pluck($type)->all();
+
+        $flag = true;
+        foreach ($rows as $k => $period) {
+            $datesActivity = explode('~', $period);
+            if (count($rows) > $k + 1) {
+                $datesActivityNext = explode('~', $rows[$k+1]);
+                if ($sort === 'asc') {
+                    if ($time === 'start') {
+                        if (strtotime(date($datesActivityNext[0])) < strtotime(date($datesActivity[0]))) {
+                            $flag = false;
+                            break;
+                        }
+                    } elseif ($time === 'end') {
+                        $endDate = $datesActivity[1];
+                        $endDateNext = $datesActivityNext[1];
+                        if (in_array($endDate, $empty)) {
+                            $endDate = null;
+                        }
+                        if (in_array($endDateNext, $empty)) {
+                            $endDateNext = null;
+                        }
+                        if (($endDate === null && $endDateNext !== null) ||
+                            ($endDate !== null && $endDateNext !== null &&
+                                strtotime(date($datesActivityNext[1])) < strtotime(date($datesActivity[1])))) {
+                            $flag = false;
+                            break;
+                        }
+                    }
+                } elseif ($sort === 'desc') {
+                    if ($time === 'start') {
+                        if (strtotime(date($datesActivityNext[0])) > strtotime(date($datesActivity[0]))) {
+                            $flag = false;
+                            break;
+                        }
+                    } elseif ($time === 'end') {
+                        $endDate = $datesActivity[1];
+                        $endDateNext = $datesActivityNext[1];
+                        if (in_array($endDate, $empty)) {
+                            $endDate = null;
+                        }
+                        if (in_array($endDateNext, $empty)) {
+                            $endDateNext = null;
+                        }
+                        if (($endDate === null && $endDateNext !== null) ||
+                            ($endDate !== null && $endDateNext !== null &&
+                                strtotime(date($datesActivityNext[1])) > strtotime(date($datesActivity[1])))) {
+                            $flag = false;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return $flag;
+    }
+
+    /**
+     * get data from html content
+     *
+     * @param string $html
+     * @return \Illuminate\Support\Collection
+     */
+    private function getDataFromHtml($html)
+    {
+        $dom = new DOMDocument();
+        $dom->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', "UTF-8"));
+        $rows = $dom->getElementsByTagName('tr');
+        $tds = [];
+        $keys = ['unit', 'activity_title', 'period_activity', 'period_purchase', 'amount', 'link'];
+
+        foreach($rows as $row) {
+            $cols = $row->getElementsByTagName('td');
+            $tempRow = [];
+            foreach ($cols as $k => $col) {
+                $text = trim($col->textContent);
+                if ($keys[$k] === 'link' && $text) {
+                    $text = '詳細';
+                }
+                if ($keys[$k] === 'period_activity' || $keys[$k] === 'period_purchase') {
+                    $text = preg_replace('/\s+/i', '', $text);
+                }
+                $tempRow[$keys[$k]] = $text;
+            }
+            $tds[] = $tempRow;
+            $tempRow = [];
+        }
+
+        return collect($tds);
+    }
+
+    /**
+     * get data from html content
+     *
+     * @param string $html
+     * @return array
+     */
+    private function getDataPagination($html)
+    {
+        if (empty($html)) {
+            return ['buttons' => [], 'summary' => []];
+        }
+
+        $dom = new DOMDocument();
+        $dom->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', "UTF-8"));
+        $xpath = new DOMXpath($dom);
+
+        $entitiesButton  = $xpath->query('//div/div/ul/li/a/span');
+        $entitiesSummary = $xpath->query('//div/div/p/span');
+        $buttonsNumber   = $summary = [];
+
+        // get buttons of pagination
+        foreach ($entitiesButton as $entity) {
+            $buttonsNumber[] = $entity->nodeValue;
+        }
+
+        // get summary '{totalRecords}件中 {fromRecord}-{toRecord}を表示'
+        foreach ($entitiesSummary as $entity) {
+            $summary[] = $entity->nodeValue;
+        }
+
+        return ['buttons' => $buttonsNumber, 'summary' => $summary];
+    }
+
+    /**
+     * Create data for test
+     */
+    private function prepareData()
+    {
+        $units     = [\Constant::UNIT_AREA, \Constant::UNIT_ACTIVITY];
+        $amounts   = range(1, 200);
+        $curTime   = strtotime(date('Y-m-d'));
+        $rateTypes = [\Constant::ACCUMULATION_RATE_TYPE_VARIABLE, \Constant::ACCUMULATION_RATE_TYPE_FIXED];
+
+        factory(Promotion::class)->create([
+            'activity_id'         => 'VELTRA-10474',
+            'activity_title'      => 'バトー・ロンドン(Bateaux London)☆お得に一流サービスを！テムズ川ランチクルーズ',
+            'area_path'           => null,
+            'unit'                => $units[array_rand($units)],
+            'amount'              => $amounts[array_rand($amounts)],
+            'activity_start_date' => date('Y-m-d'),
+            'activity_end_date'   => null,
+            'purchase_start_date' => date('Y-m-d', $curTime + 14*24*60*60),
+            'purchase_end_date'   => null,
+            'mile_type'           => self::$mileType,
+            'rate_type'           => $rateTypes[array_rand($rateTypes)],
+            'created_user'        => 'admin@gmail.com',
+        ]);
+
+        factory(Promotion::class)->create([
+            'activity_id'         => null,
+            'activity_title'      => null,
+            'area_path'           => 'europe/uk/london/',
+            'unit'                => $units[array_rand($units)],
+            'amount'              => $amounts[array_rand($amounts)],
+            'activity_start_date' => date('Y-m-d', $curTime + 7*24*60*60),
+            'activity_end_date'   => null,
+            'purchase_start_date' => date('Y-m-d', $curTime + 20*24*60*60),
+            'purchase_end_date'   => null,
+            'mile_type'           => self::$mileType,
+            'rate_type'           => $rateTypes[array_rand($rateTypes)],
+            'created_user'        => 'admin@gmail.com',
+        ]);
+
+        for ($i = 0; $i < 6; $i++) {
+            factory(Mile::class)->create([
+                'plan_start_date' => date('Y-m-d', $curTime + $i * 24 * 60 * 60),
+                'amount' => 100 + $i*10,
+                'mile_type' => self::$mileType,
+            ]);
+        }
+
+        $areaPaths = [
+            'europe/spain/cordoba',
+            'europe/spain/granada',
+            'europe/spain/malaga',
+            'europe/spain/northern_spain',
+            'europe/spain/seville',
+            'europe/uk/london'
+        ];
+        foreach ($areaPaths as $k => $areaPath) {
+            $titlesAreaPaths = ['london', 'test', 'アフリカ', '南アフリカ'];
+            factory(Area::class)->create([
+                'area_path'     => $areaPath,
+                'area_path_jp'  => $k === 0 ? 'london' : $titlesAreaPaths[array_rand($titlesAreaPaths)],
+                'created_user'  => 'admin@test.com',
+            ]);
+        }
+    }
+}

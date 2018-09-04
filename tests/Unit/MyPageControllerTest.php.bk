@@ -1,0 +1,639 @@
+<?php
+
+namespace Tests\Unit\MyPage;
+
+use App\Api\Facades\Api;
+use App\Models\Booking;
+use App\Models\BookingLog;
+use App\Repositories\BookingRepository;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\HttpException;
+use Mockery;
+use Tests\TestCase;
+
+/**
+ * Screen: Traveler_MyPage_ListScreen
+ * @author Phat Huynh Nguyen <huynh.phat@mulodo.com>
+ */
+class MyPageControllerTest extends TestCase
+{
+    use DatabaseTransactions;
+
+    /**
+     * @var bool
+     */
+    protected $isTraveler = true;
+
+    /**
+     * @var string
+     */
+    private static $url;
+
+    /**
+     * @var BookingRepository
+     */
+    private $bookingRepo;
+
+    private $bookingDetail;
+    private $activityDetail;
+
+    /**
+     * @inheritDoc
+     */
+    public function setUp()
+    {
+        parent::setUp();
+
+        self::$url = route('traveler.mypage.index');
+        $this->bookingRepo = new BookingRepository();
+
+        if ($this->bookingDetail === null) {
+            $this->mockApi();
+            Booking::query()->delete();
+            BookingLog::query()->delete();
+        }
+
+        $this->prepareData();
+    }
+
+    /**
+     * clean up the testing environment before the next test
+     *
+     * @return void
+     */
+    public function tearDown()
+    {
+        if ($this->app) {
+            foreach ($this->beforeApplicationDestroyedCallbacks as $callback) {
+                call_user_func($callback);
+            }
+            $this->app->flush();
+            $this->app = null;
+        }
+
+        if (class_exists('Mockery')) {
+            Mockery::close();
+        }
+    }
+
+    /**
+     * [TestCase-1.1] Test redirect to the booking search screen when not login ANA yet
+     *
+     * Condition:
+     * - Session login ana not exist
+     *
+     * Expectation:
+     * - Redirect to the booking search screen (/booking/search)
+     * - See a header text 'ANAマイレージクラブでないお客様の予約内容確認・変更・キャンセル'
+     */
+    public function test11RedirectToBookingSearchScreenWhenNotLoginAnaYet()
+    {
+        $this->get(self::$url)
+             ->assertRedirect(route('traveler.mypage.search.form'));
+    }
+
+    /**
+     * [TestCase-1.2] Test redirect to MyPage page when logon ANA
+     *
+     * Condition:
+     * - Session login ana existed
+     * - Url: '/mypage'
+     *
+     * Expectation:
+     * - See a header text 'マイページ' on screen
+     * - See some session info (first name, last name, balance)
+     */
+    public function test12AccessToMyPageScreenWhenSessionExists()
+    {
+        $this->loginANA();
+
+        $ssoData = session('ssoData');
+
+        $this->get(self::$url)
+             ->assertSee('マイページ')
+             ->assertSee($ssoData['first_name'])
+             ->assertSee($ssoData['last_name'])
+             ->assertSee(number_format($ssoData['balance']));
+    }
+
+    /**
+     * [TestCase-1.3.1] Test no display the current booking list when database empty
+     *
+     * Condition:
+     * - Session login ana existed
+     * - Url: '/mypage'
+     * - Database empty
+     *
+     * Expectation:
+     * - See a header text '現在の予約' on screen
+     * - Do not see the current booking list
+     */
+    public function test131NoDisplayCurrentBookingListWhenDatabaseEmpty()
+    {
+        $this->loginANA();
+
+        Booking::query()->delete();
+        BookingLog::query()->delete();
+
+        $ssoData = session('ssoData');
+        $params = ['page' => 1, 'per_page' => 10, 'type' => 'current'];
+
+        $currentBookings = $this->bookingRepo->getBookingsByAmcAndEmail($ssoData['id'], $ssoData['email'], true, $params);
+        $totalRecords = $currentBookings->total();
+
+        $this->assertEquals(0, $totalRecords);
+    }
+
+    /**
+     * [TestCase-1.3.2] Test no display the current booking list when the returned data empty
+     *
+     * Condition:
+     * - Session login ana existed
+     * - Url: '/mypage'
+     * - Database is not empty
+     * - Returned data is empty
+     *
+     * Expectation:
+     * - See a header text '現在の予約' on screen
+     * - Do not see the current booking list (the current bookings is null)
+     */
+    public function test132NoDisplayCurrentBookingListWhenReturnDataEmpty()
+    {
+        $this->loginANA();
+
+        Booking::query()->delete();
+        BookingLog::query()->delete();
+
+        // Participation date < current date (2 days)
+        $applicationDate = date('Y-m-d', strtotime(date('Y-m-d')) - 2*24*60*60);
+        $this->createBooking(['participation_date' => $applicationDate]);
+
+        $ssoData = session('ssoData');
+        $params = ['page' => 1, 'per_page' => 10, 'type' => 'current'];
+        $currentBookings = $this->bookingRepo->getBookingsByAmcAndEmail($ssoData['id'], $ssoData['email'], true, $params);
+        $totalRecords = $currentBookings->total();
+
+        $this->assertEquals(0, $totalRecords);
+    }
+
+    /**
+     * [TestCase-1.4] Test display the current booking list
+     *
+     * Condition:
+     * - Session login ana existed
+     * - Url: '/mypage'
+     * - Returned data is not empty
+     * - Participation date greater than current date
+     * - Booking status is not cancelled
+     *
+     * Expectation:
+     * - See a header text '現在の予約' on screen
+     * - See the current booking list
+     */
+    public function test14DisplayCurrentBookingList()
+    {
+        $this->loginANA();
+
+        $ssoData = session('ssoData');
+        $params = ['page' => 1, 'per_page' => 10, 'type' => 'current'];
+        $currentBookings = $this->bookingRepo->getBookingsByAmcAndEmail($ssoData['id'], $ssoData['email'], true, $params);
+        $totalRecords = $currentBookings->total();
+
+        $this->assertGreaterThanOrEqual(1, $totalRecords);
+    }
+
+    /**
+     * [TestCase-1.5.1] Test no display the past booking list when database empty
+     *
+     * Condition:
+     * - Session login ana existed
+     * - Url: '/mypage'
+     * - Database is empty
+     *
+     * Expectation:
+     * - See a header text 'キャンセル済・過去の予約' on screen
+     * - Do not see the past booking list
+     */
+    public function test151NoDisplayPastBookingListWhenDatabaseEmpty()
+    {
+        $this->loginANA();
+
+        Booking::query()->delete();
+        BookingLog::query()->delete();
+
+        $ssoData = session('ssoData');
+
+        $params = ['page' => 1, 'per_page' => 10, 'type' => 'past'];
+        $pastBookings = $this->bookingRepo->getBookingsByAmcAndEmail($ssoData['id'], $ssoData['email'], false, $params);
+        $totalRecords = $pastBookings->total();
+
+        $this->assertEquals(0, $totalRecords);
+    }
+
+    /**
+     * [TestCase-1.5.2] Test no display the past booking list when the returned data empty
+     *
+     * Condition:
+     * - Session login ana existed
+     * - Url: '/mypage'
+     * - Database is not empty
+     * - Returned data is empty
+     *
+     * Expectation:
+     * - See a header text 'キャンセル済・過去の予約' on screen
+     * - Do not see the past booking list
+     */
+    public function test152NoDisplayPastBookingListWhenReturnDataEmpty()
+    {
+        $this->loginANA();
+
+        Booking::query()->delete();
+        BookingLog::query()->delete();
+
+        // create the current booking
+        $participationDate = date('Y-m-d', strtotime(date('Y-m-d')) + 4*24*60*60);
+        $this->createBooking(['participation_date' => $participationDate]);
+
+        $ssoData = session('ssoData');
+        $params = ['page' => 1, 'per_page' => 10, 'type' => 'past'];
+        $pastBookings = $this->bookingRepo->getBookingsByAmcAndEmail($ssoData['id'], $ssoData['email'], false, $params);
+        $totalRecords = $pastBookings->total();
+
+        $this->assertEquals(0, $totalRecords);
+    }
+
+    /**
+     * [TestCase-1.6] Test display the past booking list
+     *
+     * Condition:
+     * - Session login ana existed
+     * - Url: '/mypage'
+     * - Database is not empty
+     * - Returned data is not empty
+     *
+     * Expectation:
+     * - See a header text 'キャンセル済・過去の予約' on screen
+     * - See the past booking list
+     */
+    public function test16DisplayPastBookingList()
+    {
+        $this->loginANA();
+
+        Booking::query()->delete();
+        BookingLog::query()->delete();
+
+        // past date
+        $date = date('Y-m-d', strtotime(date('Y-m-d')) - 2*24*60*60);
+
+        $this->createBooking(['booking_id' => 'VELTRA-5YJOYFNT', 'participation_date' => $date]);
+        $this->createBooking(['booking_id' => 'VELTRA-3N0RHQ74', 'status' => 'CANCELED_BY_TRAVELER']);
+
+        $ssoData = session('ssoData');
+        $params = ['page' => 1, 'per_page' => 10, 'type' => 'past'];
+        $pastBookings = $this->bookingRepo->getBookingsByAmcAndEmail($ssoData['id'], $ssoData['email'], false, $params);
+        $totalRecords = $pastBookings->total();
+
+        $this->assertGreaterThanOrEqual(1, $totalRecords);
+    }
+
+    /**
+     * [TestCase-1.7] Test display the link 'Logout'
+     *
+     * Condition:
+     * - Session login ana existed
+     * - Url: '/mypage'
+     *
+     * Expectation:
+     * - See a header text 'マイページ' on screen
+     * - See the logout link with text 'ログアウト'
+     */
+    public function test17DisplayLinkLogout()
+    {
+        $this->loginANA();
+
+        $this->get(self::$url)
+             ->assertSee('マイページ')
+             ->assertSee('ログアウト');
+    }
+
+    /**
+     * [TestCase-1.8] Test display the link 'Voucher Download'
+     *
+     * Condition:
+     * - Session login ana existed
+     * - Url: '/mypage'
+     * - Database is not empty
+     * - Returned data is not empty
+     * - Voucher url exists in the returned data
+     *
+     * Expectation:
+     * - See the link 'Voucher Download'
+     */
+    public function test18DisplayLinkVoucherDownload()
+    {
+        $this->loginANA();
+
+        // mock the booking that it exists the url_voucher
+        $bookingData  = json_decode(file_get_contents(base_path('tests/json/getBookingDetail3N0RHQ74.json')));
+        $url_voucher = 'https://storage.googleapis.com/dev-voucher.vds-connect.com/vouchers/1598181/aa17921456fcaf3c.pdf';
+        Api::shouldReceive('requestNoCache')
+            ->with('get-booking-details', \Mockery::any())
+            ->andReturn($bookingData);
+
+        $response = $this->ajax(self::$url, 'GET', [])->getOriginalContent();
+
+        $txtLinkVourcher = 'バウチャーをダウンロード';
+        $hasTxtLinkVourcher = stripos($response['current_list'], $txtLinkVourcher) !== false;
+        $hasUrlVourcher  = stripos($response['current_list'], $url_voucher) !== false;
+
+        $this->assertTrue($hasTxtLinkVourcher);
+        $this->assertTrue($hasUrlVourcher);
+    }
+
+    /**
+     * [TestCase-1.9] Test no display the link 'Voucher Download'
+     *
+     * Condition:
+     * - Session login ana existed
+     * - Url: '/mypage'
+     * - Database is not empty
+     * - Returned data is not empty
+     * - Voucher url is empty in the returned data
+     *
+     * Expectation:
+     * - Do not see the link 'Voucher Download'
+     */
+    public function test19NoDisplayLinkVoucherDownload()
+    {
+        $this->loginANA();
+
+        // remove voucher_url from the mock booking detail
+        $bookingData  = json_decode(file_get_contents(base_path('tests/json/getBookingDetail3N0RHQ74.json')));
+        if (isset($bookingData->voucher_url)) {
+            unset($bookingData->voucher_url);
+        }
+        if (isset($bookingData->voucher_id)) {
+            unset($bookingData->voucher_id);
+        }
+        Api::shouldReceive('requestNoCache')
+            ->with('get-booking-details', \Mockery::any())
+            ->andReturn($bookingData);
+
+        $response = $this->ajax(self::$url, 'GET', [])->getOriginalContent();
+
+        $txtLinkVourcher = 'バウチャーをダウンロード';
+        $notLinkVoucher = stripos($response['current_list'], $txtLinkVourcher) === false;
+
+        $this->assertTrue($notLinkVoucher);
+    }
+
+    /**
+     * [TestCase-1.11] Test redirect to the search index page when logout
+     *
+     * Condition:
+     * - Session login ana existed
+     * - Url: '/mypage'
+     * - Link logout
+     * - Click on link Logout
+     *
+     * Expectation:
+     * - Redirect to the search index page (/)
+     * - See the header text 'オプショナルツアーを探す'
+     */
+    public function test111RedirectToSearchPageWhenLogout()
+    {
+        $this->loginANA();
+
+        $linkLogout = route('ana.logout');
+
+        $this->get($linkLogout)
+             ->assertRedirect(route('activity.index'))
+             ->followRedirects()
+             ->assertSee('オプショナルツアーを探す');
+    }
+
+    /**
+     * [TestCase-1.12] Test redirect to the booking details page when click on button 'show booking details'
+     *
+     * Condition:
+     * - Session login ana existed
+     * - Url: '/mypage'
+     * - Database is not empty
+     * - Returned data is not empty
+     * - Click on button '予約詳細を見る'
+     *
+     * Expectation:
+     * - See the header text '予約詳細'
+     * - See the booking details information on screen
+     */
+    public function test112RedirectToBookingDetailPageWhenClickOnButtonShowBookingDetail()
+    {
+        $this->loginANA();
+
+        $bookingId = 'VELTRA-5YJOYFNT';
+        $urlBookingDetail = route('traveler.mypage.booking.detail', $bookingId);
+
+        $this->get($urlBookingDetail)
+             ->assertSee('予約詳細')
+             ->assertSee($bookingId);
+    }
+
+    /**
+     * [TestCase-1.13] Test redirect to the activity detail page when click on link 'activity title/plan title'
+     *
+     * Condition:
+     * - Session login ana existed
+     * - Url: '/mypage'
+     * - Database is not empty
+     * - Returned data is not empty
+     *  - ActivityID is 'VELTRA-100010679'
+     * - Click on link 'activity title/plan title' at '商品名 / プラン名'
+     *
+     * Expectation:
+     * - Redirect to the Activity Detail Screen (/activitydetail/{ActivityID})
+     * - See the activity detail information on screen
+     */
+    public function test113RedirectToActivityDetailPageWhenClickOnLinkActivityTitle()
+    {
+        $this->loginANA();
+
+        $urlActivityDetail = route('activity.detail', [$this->activityDetail->id]);
+
+        $this->get($urlActivityDetail)
+             ->assertSee($this->activityDetail->title);
+    }
+
+    /**
+     * [TestCase-1.14] Test display the booking status text by status type
+     *
+     * Condition:
+     * - Session login ana existed
+     * - Url: '/mypage'
+     * - Database is not empty
+     * - Returned data is not empty
+     * - Booking status is COMFIRMED
+     *
+     * Expectation:
+     * - See the header text '予約詳細'
+     * - See the text ''
+    */
+    public function test114DisplayBookingStatusTextByStatusType()
+    {
+        $this->loginANA();
+
+        $response = $this->ajax(self::$url, 'GET', [])->getOriginalContent();
+        $content = implode('', $response);
+        // the booking status in mock
+        $statusBooking = 'REQUESTED';
+        $statusMessage = config('enums.status_messages')[$statusBooking]['status'];
+        $hasStatusMessage = stripos($content, $statusMessage) !== false;
+
+        $this->assertTrue($hasStatusMessage);
+    }
+
+    /**
+     * create the booking by params
+     *
+     * @param array $params
+     */
+    private function createBooking($params = [])
+    {
+        factory(Booking::class)->create([
+            'booking_id'            => $params['booking_id'] ?? 'VELTRA-5YJOYFNT',
+            'activity_id'           => $params['activity_id'] ?? 'VELTRA-100010679',
+            'plan_id'               => $params['plan_id'] ?? 'VELTRA-108951-0',
+            'guest_flag'            => $params['guest_flag'] ?? 1,
+            'first_name'            => $params['first_name'] ?? 'taro',
+            'last_name'             => $params['last_name'] ?? 'sorana',
+            'email'                 => $params['email'] ?? 'sorano@anasystems.co.jp',
+            'contact_mail'          => 'admin@test.com',
+            'amc_number'            => $params['amc_number'] ?? '1234567890',
+            'booking_date'          => $params['booking_date'] ?? date('Y-m-d'),
+            'participation_date'    => $params['participation_date'] ?? date('Y-m-d', strtotime(date('Y-m-d')) + 10*24*60*60),
+            'participant_persons'   => rand(1, 100),
+            'sales_price'           => '400',
+            'booking_unit_price'    => '4',
+            'sales_price_mile'        => '4',
+            'booking_unit_price_mile' => '4',
+            'refund_mile'           => '0',
+            'mile_type'             => rand(0, 2),
+            'accumulate_flag'       => rand(0, 1),
+            'status'                => $params['status'] ?? 'CONFIRMED',
+            'create_user'           => 'admin',
+            'update_user'           => 'admin'
+        ]);
+
+        factory(BookingLog::class)->create([
+            'booking_id'  => $params['booking_id'] ?? 'VELTRA-5YJOYFNT',
+            'date_time'   => date('Y-m-d H:i:s'),
+            'log_name'    => 'log test',
+            'memo'        => 'test_comment',
+            'user'        => 'test',
+            'create_user' => 'admin',
+            'update_user' => 'admin'
+        ]);
+    }
+
+    /**
+     * mock api
+     *
+     * @return void
+     */
+    private function mockApi()
+    {
+        $bookingData  = json_decode(file_get_contents(base_path('tests/json/getBookingDetail.json')));
+        $activityData = json_decode(file_get_contents(base_path('tests/json/getActivityDetail.json')));
+
+        Api::shouldReceive('requestNoCache')
+            ->with('get-booking-details', ['booking_id' => 'VELTRA-123456'])
+            ->andThrow(new HttpException(404));
+        Api::shouldReceive('requestNoCache')
+            ->with('get-booking-details', \Mockery::any())
+            ->andReturn($bookingData)->byDefault();
+        Api::shouldReceive('request')
+            ->with('get-activity-details', \Mockery::any())
+            ->andReturn($activityData)->byDefault();
+        Api::shouldReceive('requestNoCache')
+            ->with('start-cancel-booking', \Mockery::any())
+            ->andReturn(json_decode(file_get_contents(base_path('tests/json/startCancelBooking.json'))));
+
+        $this->bookingDetail  = $bookingData;
+        $this->activityDetail = $activityData;
+    }
+
+    /**
+     * function prepare data
+     * @return void
+     */
+    private function prepareData()
+    {
+        $curTime = strtotime(date('Y-m-d'));
+        factory(Booking::class)->create([
+            'booking_id'              => 'VELTRA-5YJOYFNT',
+            'activity_id'             => 'VELTRA-100000106',
+            'plan_id'                 => rand(1, 100),
+            'guest_flag'              => 1,
+            'first_name'              => 'taro',
+            'last_name'               => 'sonaro',
+            'email'                   => 'sorano@anasystems.co.jp',
+            'contact_mail'            => 'admin@test.com',
+            'amc_number'              => '1234567890',
+            'booking_date'            => date('Y-m-d'),
+            'participation_date'      => date('Y-m-d', $curTime + 20*24*60*60),
+            'participant_persons'     => rand(1, 100),
+            'sales_price'             => '400',
+            'booking_unit_price'      => '4',
+            'sales_price_mile'        => '4',
+            'booking_unit_price_mile' => '4',
+            'refund_mile'             => '0',
+            'mile_type'               => rand(0, 2),
+            'accumulate_flag'         => rand(0, 1),
+            'status'                  => 'CONFIRMED',
+            'create_user'             => 'admin',
+            'update_user'             => 'admin'
+        ]);
+        factory(Booking::class)->create([
+            'booking_id'              => 'VELTRA-3N0RHQ74',
+            'activity_id'             => 'VELTRA-100010613',
+            'plan_id'                 => rand(1, 100),
+            'guest_flag'              => 1,
+            'first_name'              => 'taro',
+            'last_name'               => 'sonaro',
+            'email'                   => 'sorano@anasystems.co.jp',
+            'contact_mail'            => 'admin@test.com',
+            'amc_number'              => '1234567890',
+            'booking_date'            => date('Y-m-d', $curTime + 2*24*60*60),
+            'participation_date'      => date('Y-m-d', $curTime + 22*24*60*60),
+            'participant_persons'     => rand(1, 100),
+            'sales_price'             => '400',
+            'booking_unit_price'      => '4',
+            'sales_price_mile'        => '4',
+            'booking_unit_price_mile' => '4',
+            'refund_mile'             => '0',
+            'mile_type'               => 2,
+            'accumulate_flag'         => rand(0, 1),
+            'status'                  => 'CONFIRMED',
+            'create_user'             => 'admin',
+            'update_user'             => 'admin'
+        ]);
+
+        factory(BookingLog::class)->create([
+            'booking_id'  => 'VELTRA-5YJOYFNT',
+            'date_time'   => date('Y-m-d H:i:s'),
+            'log_name'    => 'log test',
+            'memo'        => 'test_comment',
+            'user'        => 'test',
+            'create_user' => 'admin',
+            'update_user' => 'admin'
+        ]);
+        factory(BookingLog::class)->create([
+            'booking_id'  => 'VELTRA-3N0RHQ74',
+            'date_time'   => date('Y-m-d H:i:s'),
+            'log_name'    => 'log test',
+            'memo'        => 'test_comment',
+            'user'        => 'test',
+            'create_user' => 'admin',
+            'update_user' => 'admin'
+        ]);
+    }
+}
