@@ -28,6 +28,14 @@ abstract class TestCase extends BaseTestCase
 
             return $response;
         });
+
+        // Display test's names while running PHPUnit
+        // $testName = str_replace(["test", "_"], ["", " "], $this->getName());
+        // $testName = preg_replace_callback("/[a-zA-Z0-9]{3,}\b/", function ($match) {
+        //     return ucfirst($match[0]);
+        // }, $testName);
+
+        // dump(" ->" . $testName);
     }
 
     /**

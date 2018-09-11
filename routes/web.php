@@ -28,3 +28,37 @@ Route::prefix('admin')->group(function () {
 });
 
 Route::get('datepicker', 'TestController@showDatePicker');
+Route::group(['middleware' => ['timeout']], function () {
+    Route::get('session-expired', 'TestController@sessionExpired');
+});
+Route::get('ajax-session-expired', 'TestController@ajaxSessionExpired');
+Route::post('ajax-session-expired', 'TestController@postSessionExpired')->name('ajax-session-expired');
+
+// Creating dynamic routes
+// Instanciate a router class.
+$router = app()->make('router');
+
+// For instance this can come from your database.
+$paths = ['path/to/route1','path/to/route2','path/to/route3'];
+
+// Then iterate the router "get" method.
+foreach ($paths as $path) {
+    $router->get($path, 'TestController@index')->name('pilots.index');
+}
+
+// optional() helper now supports a callback
+Route::get('/optional', function () {
+    $a = 1;
+    $b = optional($a, function () {
+        return 'hi there!';
+    });
+
+    echo $b;
+});
+
+
+Route::get('test/{cid}/{qid}', function ($cid, $qid) {
+    echo 'CID: '.$cid.' - QID: '.$qid;
+})->name('test.route');
+
+Route::get('test/carbon', 'TestController@testCarbon');

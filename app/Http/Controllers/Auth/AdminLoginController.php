@@ -12,8 +12,8 @@ class AdminLoginController extends Controller
 {
     use AuthenticatesUsers;
 
-    protected $maxAttempts  = 6;  // total of attempts that user tries to login
-    protected $decayMinutes = 5;  // total of minutes that user will wait for login again
+    protected $maxAttempts  = 5;  // total of attempts that user tries to login
+    protected $decayMinutes = 1;  // total of minutes that user will wait for login again
 
     /**
      * Create a new controller instance.
