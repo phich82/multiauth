@@ -16,54 +16,62 @@ class CSV
      * @var integer
      */
     private static $timeLimit = 60;
+
     /**
      * csv filename
      *
      * @var string
      */
-    private static $filename  = 'data';
+    private static $filename = 'data';
+
     /**
      * headers for browser
      *
      * @var array
      */
-    private static $headers   = [];
+    private static $headers = [];
+
     /**
      * column names in csv file
      *
      * @var array
      */
-    private static $titles    = [];
+    private static $titles = [];
+
     /**
      * fields required for filtering input data
      *
      * @var array
      */
-    private static $fields    = [];
+    private static $fields = [];
+
     /**
      * input data for writting a csv file
      *
      * @var array
      */
-    private static $contents  = [];
+    private static $contents = [];
+
     /**
      * delimiter for each cell of a row in csv file
      *
      * @var string
      */
     private static $delimiter = ",";
+
     /**
      * new line of each row in csv file
      *
      * @var string
      */
-    private static $newline   = "\r\n";
+    private static $newline = "\r\n";
+
     /**
      * replace the default values of contents
      *
      * @var array
      */
-    private static $replaces  = [];
+    private static $replaces = [];
 
 
     /**
