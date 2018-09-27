@@ -1,5 +1,9 @@
 <?php
 
+use App\Role;
+use Illuminate\Support\Facades\DB;
+use App\User;
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -62,3 +66,19 @@ Route::get('test/{cid}/{qid}', function ($cid, $qid) {
 })->name('test.route');
 
 Route::get('test/carbon', 'TestController@testCarbon');
+
+Route::get('/multiple-update', function () {
+    $records = [
+        [
+            'id' => 1,
+            'name' => 'phich82',
+            'email' => 'phich82@gmail.com',
+        ],
+        [
+            'id' => 2,
+            'email' => 'jhphich82@gmail.com',
+            'name' => 'jhphich82',
+        ]
+    ];
+    dd(User::updateMany($records));
+});

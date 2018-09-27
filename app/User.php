@@ -4,10 +4,14 @@ namespace App;
 
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use App\Commons\Traits\BulkCRUDTrait;
+use App\Commons\Traits\SupportTableTrait;
 
 class User extends Authenticatable
 {
     use Notifiable;
+    use SupportTableTrait;
+    use BulkCRUDTrait;
 
     /**
      * The attributes that are mass assignable.
