@@ -20,7 +20,7 @@ trait BulkCRUDTrait
      */
     public static function updateMany($records = [], $primaryKey = null, $table = null)
     {
-        if (config('database.default') == 'mysql') {
+        if (static::isDatabaseSupported()) {
             $table = $table ? $table : (new static)->getTable();
             $primaryKey = $primaryKey ? $primaryKey : (new static)->getKeyName();
 
@@ -51,5 +51,15 @@ trait BulkCRUDTrait
             return DB::statement($sql, $params);
         }
         throw new Exception('Method [updateMany] is only supported for database [mysql]');
+    }
+
+    /**
+     * Check database whether it is supported for creating updateMany function
+     *
+     * @return bool
+     */
+    private static function isDatabaseSupported()
+    {
+        return config('database.default') == 'mysql';
     }
 }
