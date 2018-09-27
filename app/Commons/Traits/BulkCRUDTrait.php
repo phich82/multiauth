@@ -2,8 +2,8 @@
 
 namespace App\Commons\Traits;
 
+use Exception;
 use Illuminate\Support\Facades\DB;
-use Mockery\Exception;
 
 trait BulkCRUDTrait
 {
