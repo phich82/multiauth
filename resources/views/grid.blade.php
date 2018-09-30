@@ -61,9 +61,10 @@
             </td>
             <td class="align-middle">
                 <select class="form-control" style="width: 150px; height: 32px;">
-                    <option>Apple</option>
-                    <option>Orange</option>
-                    <option>Tomato</option>
+                    <option value="">Please pick a project up</option>
+                    <option value="1" selected>Apple</option>
+                    <option value="2">Orange</option>
+                    <option value="3">Tomato</option>
                 </select>
                 <span class="glyphicon glyphicon-plus pointer btnAdd"></span>
             </td>
@@ -95,7 +96,7 @@
                 <input type="text" class="form-control text-center no-border editable" name="npc_3[]" id="npc_31" />
             </td>
             <td class="align-middle">
-                <textarea name="remrks[]" id="remarks1" class="no-border h100p w100"></textarea>
+                <textarea name="remarks[]" id="remarks1" class="no-border h100p w100"></textarea>
             </td>
         </tr>
     </table>
@@ -168,7 +169,11 @@
             var rowThis = $(this).closest('tr');
             var rowNew  = rowThis.clone();
             setUpRow(rowNew, rowThis, config);
-            rowNew.insertAfter(rowThis);
+            resetValues(rowNew);
+            // insert at end of subrows
+            var children = $((config.table || 'table')).find('tr[data-child="'+rowThis.attr('data-uid')+'"]');
+            var lastChild = (children.length > 0) ? children[children.length - 1] : rowThis;
+            rowNew.insertAfter(lastChild);
         });
 
         // when removing a row for project
@@ -198,35 +203,102 @@
         $(document).on('change', 'input.editable', function (e) {
             var timeTotal    = 8;
             var overtime     = 0;
+            var totalWorked  = 0;
             var rowThis      = $(this).closest('tr');
             var dateThis     = $('select[name="ymDate"]').val() + '-' + rowThis.attr('data-day');
-            var cells        = getCells($(this).closest('tr'));
 
-            var startTime    = cells.start_time.value;
-            var endTime      = cells.end_time.value;
-            var leaveRecover = cells.leave_recover.value;
+            var dataChild = rowThis.attr('data-child');
+            var dataParent = rowThis.attr('data-parent');
+            if ((typeof dataChild !== typeof undefined && dataChild !== false) || (typeof dataParent !== typeof undefined && dataParent !== false)) { // exist
+                var et = 0;
+                var hasLunch = false;
+                var rows = $('table').find('tr[data-day="'+rowThis.attr('data-day')+'"]');
+                $.each(rows, function (idx, row) {
+                    var cells = getCells($(row));
+                    var startTime    = getMiliSeconds(cells.start_time.value, dateThis);
+                    var endTime      = getMiliSeconds(cells.end_time.value, dateThis);
+                    var leaveRecover = toNumHours(cells.leave_recover.value);
 
-            startTime     = getMiliSeconds(startTime, dateThis);
-            endTime       = getMiliSeconds(endTime, dateThis);
-            leaveRecover  = toNumHours(leaveRecover);
+                    if (isNaN(startTime)) {
+                        cells.start_time.element.parent('td').addClass('error-border');
+                    } else if (isNaN(endTime)) {
+                        cells.end_time.element.parent('td').addClass('error-border');
+                    } else if (endTime <= startTime) {
+                        error = true;
+                        cells.start_time.element.parent('td').addClass('error-border');
+                    } else {
+                        if (startTime < et) {
+                            cells.start_time.element.parent('td').addClass('error-border');
+                        } else {
+                            // show break time (lunch time)
+                            if (endTime >= getMiliSeconds('11:30', dateThis) && !hasLunch) {
+                                cells.break_time.element.val(1);
+                                hasLunch = true;
+                            }
 
-            if (isNaN(startTime)) {
-                cells.start_time.element.parent('td').addClass('error-border');
-            } else if (isNaN(endTime)) {
-                cells.end_time.element.parent('td').addClass('error-border');
-            } else if (endTime <= startTime) {
-                error = true;
-                cells.start_time.element.parent('td').addClass('error-border');
+                            var total = toNumHours(endTime - startTime);
+                            if (totalWorked < 8) {
+                                if (total > timeTotal) {
+                                    overtime = total - timeTotal;
+                                    if (overtime > leaveRecover) {
+                                        overtime -= leaveRecover;
+                                    } else {
+                                        cells.leave_recover.element.val('');
+                                    }
+                                    cells.overtime.element.val(overtime);
+                                } else {
+                                    timeTotal = 8 - totalWorked;
+                                    //timeTotal = total;
+                                    cells.leave_recover.element.val('');
+                                    cells.overtime.element.val('');
+                                }
+                                cells.time_total.element.val(timeTotal);
+                            } else {
+                                overtime = total;
+                                timeTotal = 0;
+                                if (overtime > leaveRecover) {
+                                    overtime -= leaveRecover;
+                                } else {
+                                    cells.leave_recover.element.val('');
+                                }
+                                cells.overtime.element.val(overtime);
+                                cells.time_total.element.val('');
+                                console.log('overtime: ' + overtime);
+                            }
+                            totalWorked += timeTotal;
+                        }
+                    }
+                    et = getMiliSeconds(endTime, dateThis);
+                    console.log('totalWorked ' + idx + ':' + totalWorked);
+                });
             } else {
-                cells.break_time.element.val(1);
-                var total = toNumHours(endTime - startTime);
-                if (total > timeTotal) {
-                    overtime = total - timeTotal - leaveRecover;
+                var cells        = getCells($(this).closest('tr'));
+                //var startTime    = cells.start_time.value;
+                //var endTime      = cells.end_time.value;
+                //var leaveRecover = cells.leave_recover.value;
+
+                var startTime    = getMiliSeconds(cells.start_time.value, dateThis);
+                var endTime      = getMiliSeconds(cells.end_time.value, dateThis);
+                var leaveRecover = toNumHours(cells.leave_recover.value);
+
+                if (isNaN(startTime)) {
+                    cells.start_time.element.parent('td').addClass('error-border');
+                } else if (isNaN(endTime)) {
+                    cells.end_time.element.parent('td').addClass('error-border');
+                } else if (endTime <= startTime) {
+                    error = true;
+                    cells.start_time.element.parent('td').addClass('error-border');
                 } else {
-                    timeTotal = total;
+                    cells.break_time.element.val(1);
+                    var total = toNumHours(endTime - startTime);
+                    if (total > timeTotal) {
+                        overtime = total - timeTotal - leaveRecover;
+                    } else {
+                        timeTotal = total;
+                    }
+                    cells.time_total.element.val(timeTotal);
+                    cells.overtime.element.val(overtime);
                 }
-                cells.time_total.element.val(timeTotal);
-                cells.overtime.element.val(overtime);
             }
         });
     });
@@ -255,6 +327,22 @@
         }
         // set rowspan for the specified columns
         setRowSpan(rowThis, config);
+    }
+
+    /**
+     * Reset the input values of a row
+     *
+     * @param HTMLElemt row
+     * @return void
+     */
+    function resetValues(row) {
+        if (row) {
+            $.each(row.find('td'), function (idx, cell) {
+                if ($(cell).find('input').length) { $(cell).find('input').val(''); }
+                else if ($(cell).find('select').length) { $(cell).find('select').val(''); }
+                else if ($(cell).find('textarea').length) { $(cell).find('textarea').val(''); }
+            });
+        }
     }
 
     /**
