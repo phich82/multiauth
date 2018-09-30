@@ -82,3 +82,8 @@ Route::get('/multiple-update', function () {
     ];
     dd(User::updateMany($records));
 });
+
+
+Route::get('/grid', function () {
+    return view('grid');
+});
