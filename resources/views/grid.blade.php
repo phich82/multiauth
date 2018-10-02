@@ -2,6 +2,10 @@
 
 @section('content')
 <div class="container">
+    <input type="text" class="form-control timepicker" name="time" />
+</div>
+<br>
+<div class="container">
     <div class="form-group">
         <select name="ymDate" class="form-control form-control-lg">
             <option>2018-09</option>
@@ -105,8 +109,16 @@
 
 @push('styles')
 <link href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.0/css/bootstrap.min.css" rel="stylesheet" id="bootstrap-css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-timepicker/0.5.2/css/bootstrap-timepicker.min.css" />
+{{-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-timepicker/0.5.2/css/bootstrap-timepicker.min.css" /> --}}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-timepicker/1.10.0/jquery.timepicker.min.css" />
+{{-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/timepicker/1.3.5/jquery.timepicker.min.css" /> --}}
 <style>
+    .ui-timepicker-wrapper {
+        width: 65px;
+    }
+    .ui-timepicker-wrapper .ui-timepicker-list li:hover {
+        background-color: orange;
+    }
     table input {
         width: 100%;
     }
@@ -143,8 +155,10 @@
 </style>
 @endpush
 @push('scripts')
-<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-timepicker/0.5.2/js/bootstrap-timepicker.min.js"></script>
-{{-- <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.0/js/bootstrap.min.js"></script> --}}
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.0/js/bootstrap.min.js"></script>
+{{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-timepicker/0.5.2/js/bootstrap-timepicker.min.js"></script> --}}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-timepicker/1.10.0/jquery.timepicker.min.js"></script>
+{{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/timepicker/1.3.5/jquery.timepicker.min.js"></script> --}}
 <script>
     // options for the new row generated
     var config = {
@@ -164,6 +178,17 @@
     var error = false;
 
     $(function () {
+        $(document).on('change', 'input.timepicker', function (e) {
+            console.log(1);
+        });
+
+        $('input.timepicker').timepicker({timeFormat: 'H:i', step: 15, minTime: '00:00', maxTime: '23:00'}).val('08:30')
+        .on('changeTime', function (timepicker) { // fire before 'change' event
+            console.log($(timepicker.currentTarget).val());
+        }).on('timeFormatError', function (timepicker) { // fire before 'change' event
+            $(timepicker.currentTarget).val('');
+        });
+
         // when adding a new row for project
         $(document).on('click', '.btnAdd', function (e) {
             var rowThis = $(this).closest('tr');
