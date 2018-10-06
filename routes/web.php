@@ -84,6 +84,7 @@ Route::get('/multiple-update', function () {
 });
 
 
-Route::get('/grid', function () {
-    return view('grid');
+Route::get('/grid/{type?}', function ($type = null) {
+    $type = $type ?? 'grid';
+    return view($type ?: 'grid');
 });

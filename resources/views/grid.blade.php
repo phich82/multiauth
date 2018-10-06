@@ -23,6 +23,12 @@
                 Date
             </th>
             <th>
+                Work Status
+            </th>
+            <th>
+                Work Style
+            </th>
+            <th>
                 Project
             </th>
             <th>
@@ -32,25 +38,31 @@
                 End Time
             </th>
             <th>
-                Lunch
+                Lunch Time
             </th>
             <th>
-                Leave Recover
+                Small Leave
             </th>
             <th>
-                OT
+                Leave Recovery
             </th>
             <th>
-                Time Total
+                Overtime
             </th>
             <th>
-                H
+                Midnight
             </th>
             <th>
-                I
+                Total Time
             </th>
             <th>
-                J
+                NPC Regular Time
+            </th>
+            <th>
+                NPC Overtime
+            </th>
+            <th>
+                NPC Midnight
             </th>
             <th>
                 Remarks
@@ -70,37 +82,59 @@
                     <option value="2">Orange</option>
                     <option value="3">Tomato</option>
                 </select>
+            </td>
+            <td class="align-middle">
+                <select class="form-control" style="width: 150px; height: 32px;">
+                    <option value="">Please pick a project up</option>
+                    <option value="1" selected>Apple</option>
+                    <option value="2">Orange</option>
+                    <option value="3">Tomato</option>
+                </select>
+            </td>
+            <td class="align-middle">
+                <select class="form-control" style="width: 150px; height: 32px;">
+                    <option value="">Please pick a project up</option>
+                    <option value="1" selected>Apple</option>
+                    <option value="2">Orange</option>
+                    <option value="3">Tomato</option>
+                </select>
                 <span class="glyphicon glyphicon-plus pointer btnAdd"></span>
             </td>
             <td class="align-middle">
-                <input type="text" class="form-control text-center no-border editable" name="start_time[]" id="start_time1" />
+                <input type="text" class="form-control text-center no-border editable" name="start_time[]" />
             </td>
             <td class="align-middle">
-                <input type="text" class="form-control text-center no-border editable" name="end_time[]" id="end_time1" />
+                <input type="text" class="form-control text-center no-border editable" name="end_time[]" />
             </td>
             <td class="align-middle">
-                <input type="text" class="form-control text-center bg-white no-border" name="break_time[]" id="break_time1" readonly />
+                <input type="text" class="form-control text-center bg-white no-border" name="break_time[]" readonly />
             </td>
             <td class="align-middle">
-                <input type="text" class="form-control text-center no-border editable" name="leave_recover[]" id="leave_recover1" />
+                <input type="text" class="form-control text-center no-border editable" name="small_leave[]" />
             </td>
             <td class="align-middle">
-                <input type="text" class="form-control text-center bg-white no-border" name="overtime[]" id="overtime1" readonly>
+                <input type="text" class="form-control text-center no-border editable" name="leave_recover[]" />
             </td>
             <td class="align-middle">
-                <input type="text" class="form-control text-center bg-white no-border" name="time_total[]" id="time_total1" readonly />
+                <input type="text" class="form-control text-center bg-white no-border" name="overtime[]" readonly>
             </td>
             <td class="align-middle">
-                <input type="text" class="form-control text-center no-border editable" name="npc_1[]" id="npc_11" />
+                <input type="text" class="form-control text-center bg-white no-border" name="midnight[]" readonly>
             </td>
             <td class="align-middle">
-                <input type="text" class="form-control text-center no-border editable" name="npc_2[]" id="npc_21" />
+                <input type="text" class="form-control text-center bg-white no-border" name="total_time[]" readonly />
             </td>
             <td class="align-middle">
-                <input type="text" class="form-control text-center no-border editable" name="npc_3[]" id="npc_31" />
+                <input type="text" class="form-control text-center no-border editable" name="npc_regular_time[]" />
             </td>
             <td class="align-middle">
-                <textarea name="remarks[]" id="remarks1" class="no-border h100p w100"></textarea>
+                <input type="text" class="form-control text-center no-border editable" name="npc_overtime[]" />
+            </td>
+            <td class="align-middle">
+                <input type="text" class="form-control text-center no-border editable" name="npc_midnight[]" />
+            </td>
+            <td class="align-middle">
+                <textarea name="remarks[]" class="no-border h100p w100"></textarea>
             </td>
         </tr>
     </table>
@@ -109,9 +143,7 @@
 
 @push('styles')
 <link href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.0/css/bootstrap.min.css" rel="stylesheet" id="bootstrap-css">
-{{-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-timepicker/0.5.2/css/bootstrap-timepicker.min.css" /> --}}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-timepicker/1.10.0/jquery.timepicker.min.css" />
-{{-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/timepicker/1.3.5/jquery.timepicker.min.css" /> --}}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-timepicker/0.5.2/css/bootstrap-timepicker.min.css" />
 <style>
     .ui-timepicker-wrapper {
         width: 65px;
@@ -156,9 +188,7 @@
 @endpush
 @push('scripts')
 <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.0/js/bootstrap.min.js"></script>
-{{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-timepicker/0.5.2/js/bootstrap-timepicker.min.js"></script> --}}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-timepicker/1.10.0/jquery.timepicker.min.js"></script>
-{{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/timepicker/1.3.5/jquery.timepicker.min.js"></script> --}}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-timepicker/0.5.2/js/bootstrap-timepicker.min.js"></script>
 <script>
     // options for the new row generated
     var config = {
