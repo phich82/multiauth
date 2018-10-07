@@ -278,88 +278,65 @@
                         var hasLunch = false;
                         var rows = $('table').find('tr[data-day="'+rowThis.attr('data-day')+'"]');
                         $.each(rows, function (idx, row) {
-                            var cells = getCells($(row));
-                            var startTime    = getMiliSeconds(cells.start_time.value, dateThis);
-                            var endTime      = getMiliSeconds(cells.end_time.value, dateThis);
-                            var leaveRecovery = toNumHours(cells.leave_recovery.value);
+                            calculateRelation($(row));
+                            // var cells = getCells($(row));
+                            // var startTime    = getMiliSeconds(cells.start_time.value, dateThis);
+                            // var endTime      = getMiliSeconds(cells.end_time.value, dateThis);
+                            // var leaveRecovery = toNumHours(cells.leave_recovery.value);
 
-                            if (isNaN(startTime)) {
-                                cells.start_time.element.parent('td').addClass('error-border');
-                            } else if (isNaN(endTime)) {
-                                cells.end_time.element.parent('td').addClass('error-border');
-                            } else if (endTime <= startTime) {
-                                error = true;
-                                cells.start_time.element.parent('td').addClass('error-border');
-                            } else {
-                                if (startTime < et) {
-                                    cells.start_time.element.parent('td').addClass('error-border');
-                                } else {
-                                    // show break time (lunch time)
-                                    if (endTime >= getMiliSeconds('11:30', dateThis) && !hasLunch) {
-                                        cells.break_time.element.val(1);
-                                        hasLunch = true;
-                                    }
+                            // if (isNaN(startTime)) {
+                            //     cells.start_time.element.parent('td').addClass('error-border');
+                            // } else if (isNaN(endTime)) {
+                            //     cells.end_time.element.parent('td').addClass('error-border');
+                            // } else if (endTime <= startTime) {
+                            //     error = true;
+                            //     cells.start_time.element.parent('td').addClass('error-border');
+                            // } else {
+                            //     if (startTime < et) {
+                            //         cells.start_time.element.parent('td').addClass('error-border');
+                            //     } else {
+                            //         // show break time (lunch time)
+                            //         if (endTime >= getMiliSeconds('11:30', dateThis) && !hasLunch) {
+                            //             cells.break_time.element.val(1);
+                            //             hasLunch = true;
+                            //         }
 
-                                    var total = toNumHours(endTime - startTime, -1);
-                                    if (totalWorked < 8) {
-                                        if (total > totalTime) {
-                                            overtime = total - totalTime;
-                                            if (overtime > leaveRecovery) {
-                                                overtime -= leaveRecovery;
-                                            } else {
-                                                cells.leave_recovery.element.val('');
-                                            }
-                                            cells.overtime.element.val(overtime);
-                                        } else {
-                                            totalTime = 8 - totalWorked;
-                                            //timeTotal = total;
-                                            cells.leave_recovery.element.val('');
-                                            cells.overtime.element.val('');
-                                        }
-                                        cells.total_time.element.val(totalTime);
-                                    } else {
-                                        overtime = total;
-                                        totalTime = 0;
-                                        if (overtime > leaveRecovery) {
-                                            overtime -= leaveRecovery;
-                                        } else {
-                                            cells.leave_recovery.element.val('');
-                                        }
-                                        cells.overtime.element.val(overtime);
-                                        cells.total_time.element.val('');
-                                        console.log('overtime: ' + overtime);
-                                    }
-                                    totalWorked += totalTime;
-                                }
-                            }
-                            et = getMiliSeconds(endTime, dateThis);
-                            console.log('totalWorked ' + idx + ':' + totalWorked);
+                            //         var total = toNumHours(endTime - startTime, -1);
+                            //         if (totalWorked < 8) {
+                            //             if (total > totalTime) {
+                            //                 overtime = total - totalTime;
+                            //                 if (overtime > leaveRecovery) {
+                            //                     overtime -= leaveRecovery;
+                            //                 } else {
+                            //                     cells.leave_recovery.element.val('');
+                            //                 }
+                            //                 cells.overtime.element.val(overtime);
+                            //             } else {
+                            //                 totalTime = 8 - totalWorked;
+                            //                 //timeTotal = total;
+                            //                 cells.leave_recovery.element.val('');
+                            //                 cells.overtime.element.val('');
+                            //             }
+                            //             cells.total_time.element.val(totalTime);
+                            //         } else {
+                            //             overtime = total;
+                            //             totalTime = 0;
+                            //             if (overtime > leaveRecovery) {
+                            //                 overtime -= leaveRecovery;
+                            //             } else {
+                            //                 cells.leave_recovery.element.val('');
+                            //             }
+                            //             cells.overtime.element.val(overtime);
+                            //             cells.total_time.element.val('');
+                            //             console.log('overtime: ' + overtime);
+                            //         }
+                            //         totalWorked += totalTime;
+                            //     }
+                            // }
+                            // et = getMiliSeconds(endTime, dateThis);
+                            // console.log('totalWorked ' + idx + ':' + totalWorked);
                         });
                     } else {
-                    //     var cells        = getCells($(self).closest('tr'));
-                    //     var startTime    = getMiliSeconds(cells.start_time.value, dateThis);
-                    //     var endTime      = getMiliSeconds(cells.end_time.value, dateThis);
-                    //     var leaveRecovery = toNumHours(cells.leave_recovery.value);
-
-                    //     if (isNaN(startTime)) {
-                    //         cells.start_time.element.parent('td').addClass('error-border');
-                    //     } else if (isNaN(endTime)) {
-                    //         cells.end_time.element.parent('td').addClass('error-border');
-                    //     } else if (endTime <= startTime) {
-                    //         error = true;
-                    //         cells.start_time.element.parent('td').addClass('error-border');
-                    //     } else {
-                    //         cells.break_time.element.val(1);
-                    //         var total = toNumHours(endTime - startTime, -1);
-                    //         if (total > totalTime) {
-                    //             overtime = total - timeTotal - leaveRecovery;
-                    //         } else {
-                    //             totalTime = total;
-                    //         }
-                    //         cells.total_time.element.val(totalTime);
-                    //         cells.overtime.element.val(overtime);
-                    //     }
-                        //calculate(rowThis);
                         if (calculate(rowThis) === false && ['start_time[]', 'end_time[]'].indexOf($(self).attr('name')) === -1) {
                             $(self).val('');
                             calculate(rowThis);
@@ -371,101 +348,6 @@
 
         // when input changed
         // $(document).on('change', 'input.editable', function (e) {
-        //     var timeTotal    = 8;
-        //     var overtime     = 0;
-        //     var totalWorked  = 0;
-        //     var rowThis      = $(this).closest('tr');
-        //     var dateThis     = $('select[name="ymDate"]').val() + '-' + rowThis.attr('data-day');
-
-        //     var dataChild = rowThis.attr('data-child');
-        //     var dataParent = rowThis.attr('data-parent');
-        //     if ((typeof dataChild !== typeof undefined && dataChild !== false) || (typeof dataParent !== typeof undefined && dataParent !== false)) { // exist
-        //         var et = 0;
-        //         var hasLunch = false;
-        //         var rows = $('table').find('tr[data-day="'+rowThis.attr('data-day')+'"]');
-        //         $.each(rows, function (idx, row) {
-        //             var cells = getCells($(row));
-        //             var startTime    = getMiliSeconds(cells.start_time.value, dateThis);
-        //             var endTime      = getMiliSeconds(cells.end_time.value, dateThis);
-        //             var leaveRecovery = toNumHours(cells.leave_recovery.value);
-
-        //             if (isNaN(startTime)) {
-        //                 cells.start_time.element.parent('td').addClass('error-border');
-        //             } else if (isNaN(endTime)) {
-        //                 cells.end_time.element.parent('td').addClass('error-border');
-        //             } else if (endTime <= startTime) {
-        //                 error = true;
-        //                 cells.start_time.element.parent('td').addClass('error-border');
-        //             } else {
-        //                 if (startTime < et) {
-        //                     cells.start_time.element.parent('td').addClass('error-border');
-        //                 } else {
-        //                     // show break time (lunch time)
-        //                     if (endTime >= getMiliSeconds('11:30', dateThis) && !hasLunch) {
-        //                         cells.break_time.element.val(1);
-        //                         hasLunch = true;
-        //                     }
-
-        //                     var total = toNumHours(endTime - startTime);
-        //                     if (totalWorked < 8) {
-        //                         if (total > timeTotal) {
-        //                             overtime = total - timeTotal;
-        //                             if (overtime > leaveRecovery) {
-        //                                 overtime -= leaveRecovery;
-        //                             } else {
-        //                                 cells.leave_recovery.element.val('');
-        //                             }
-        //                             cells.overtime.element.val(overtime);
-        //                         } else {
-        //                             timeTotal = 8 - totalWorked;
-        //                             //timeTotal = total;
-        //                             cells.leave_recovery.element.val('');
-        //                             cells.overtime.element.val('');
-        //                         }
-        //                         cells.time_total.element.val(timeTotal);
-        //                     } else {
-        //                         overtime = total;
-        //                         timeTotal = 0;
-        //                         if (overtime > leaveRecovery) {
-        //                             overtime -= leaveRecovery;
-        //                         } else {
-        //                             cells.leave_recovery.element.val('');
-        //                         }
-        //                         cells.overtime.element.val(overtime);
-        //                         cells.time_total.element.val('');
-        //                         console.log('overtime: ' + overtime);
-        //                     }
-        //                     totalWorked += timeTotal;
-        //                 }
-        //             }
-        //             et = getMiliSeconds(endTime, dateThis);
-        //             console.log('totalWorked ' + idx + ':' + totalWorked);
-        //         });
-        //     } else {
-        //         var cells        = getCells($(this).closest('tr'));
-        //         var startTime    = getMiliSeconds(cells.start_time.value, dateThis);
-        //         var endTime      = getMiliSeconds(cells.end_time.value, dateThis);
-        //         var leaveRecovery = toNumHours(cells.leave_recovery.value);
-
-        //         if (isNaN(startTime)) {
-        //             cells.start_time.element.parent('td').addClass('error-border');
-        //         } else if (isNaN(endTime)) {
-        //             cells.end_time.element.parent('td').addClass('error-border');
-        //         } else if (endTime <= startTime) {
-        //             error = true;
-        //             cells.start_time.element.parent('td').addClass('error-border');
-        //         } else {
-        //             cells.break_time.element.val(1);
-        //             var total = toNumHours(endTime - startTime);
-        //             if (total > timeTotal) {
-        //                 overtime = total - timeTotal - leaveRecovery;
-        //             } else {
-        //                 timeTotal = total;
-        //             }
-        //             cells.time_total.element.val(timeTotal);
-        //             cells.overtime.element.val(overtime);
-        //         }
-        //     }
         // });
     });
 
@@ -640,6 +522,191 @@
 
     function updateRows() {
 
+    }
+
+    function calculateRelation(row) {
+        var rangeRegularTime = toRangeNumHours(['08:30', '17:30']); // [8.5, 17.5] - 1 (lunch)
+        var rangeOverTime    = toRangeNumHours(['17:30', '22:30']); // [17.5, 22.50]
+        var rangeMidNight    = toRangeNumHours(['22:30', '06:30']); // [22.5, 29.5]22.5 + 1.5 + 6.5 -1 (lunch)
+        var minStartTime     = toNumHours('08:30');
+        var maxStartTime     = toNumHours('24:00');
+        var minEndTime       = toNumHours('08:30');
+        var maxEndTime       = toNumHours('24:00');
+        var lunchTime        = toNumHours('11:30');
+
+        var cells          = getCells(row);
+        var startTime      = cells.start_time.value_number;
+        var endTime        = cells.end_time.value_number;
+        var breakTime      = 0;
+        var smallLeave     = cells.small_leave.value_number;
+        var leaveRecovery  = cells.leave_recovery.value_number;
+        var overtime       = cells.overtime.value_number;
+        var midnight       = cells.midnight.value_number;
+        var totalTime      = cells.total_time.value_number;
+        var npcRegularTime = cells.npc_regular_time.value_number;
+        var npcOverTime    = cells.npc_overtime.value_number;
+        var npcMidNight    = cells.npc_midnight.value_number;
+        var remarks        = cells.remarks.value_number;
+
+        var workTime = 8;
+        var flag = false;
+
+        if (startTime == 0 && endTime == 0) {
+            resetValues(row);
+            flag = true;
+            console.log(1);
+            return false;
+        }
+
+        if (startTime < minStartTime || startTime > maxStartTime) {
+            toggleErrorCell(cells, 'start_time');
+            flag = true;
+            console.log(2);
+            return false;
+        }
+
+        if (endTime < minEndTime || endTime > maxEndTime) {
+            toggleErrorCell(cells, 'end_time');
+            flag = true;
+            console.log(3);
+            return false;
+        }
+
+        if (startTime > endTime) {
+            toggleErrorCell(cells, 'start_time');
+            flag = true;
+            console.log(4);
+            return false;
+        }
+
+        toggleErrorCell(cells, ['start_time', 'end_time'], true);
+
+        if (endTime <= rangeRegularTime[1]) { // in regular time
+            breakTime  = endTime >= lunchTime ? 1 : 0;
+            totalTime  = endTime - startTime - breakTime;
+            smallLeave = workTime - totalTime;
+            totalTime  = totalTime - npcRegularTime;
+
+            // check npc regular time
+            if (totalTime < 0) {
+                toggleErrorCell(cells, 'npc_regular_time');
+                return false;
+            }
+            toggleErrorCell(cells, 'npc_regular_time', true);
+
+            // show
+            cells.break_time.element.val(normalize(breakTime));
+            cells.small_leave.element.val(normalize(smallLeave));
+            cells.leave_recovery.element.val('');
+            cells.overtime.element.val('');
+            cells.midnight.element.val('');
+            cells.total_time.element.val(normalize(totalTime));
+            cells.npc_regular_time.element.val(toHHMM(npcRegularTime));
+            cells.npc_overtime.element.val('');
+            cells.npc_midnight.element.val('');
+            console.log('Regular Time');
+        } else if (endTime <= rangeOverTime[1]) { // in overtime
+            breakTime = 1;
+            totalTime = endTime - rangeRegularTime[0] - breakTime;
+
+            // check npc regular time
+            totalTime = totalTime - npcRegularTime;
+            if (totalTime < 0 || totalTime < workTime) {
+                toggleErrorCell(cells, 'npc_regular_time');
+                return false;
+            }
+            toggleErrorCell(cells, 'npc_regular_time', true);
+
+            // check leave recovery
+            totalTime = totalTime - leaveRecovery;
+            if (totalTime < 0 || (leaveRecovery > 0 && totalTime < workTime)) {
+                toggleErrorCell(cells, 'leave_recovery');
+                return false;
+            }
+            toggleErrorCell(cells, 'leave_recovery', true);
+
+            // check overtime
+            if (totalTime >= workTime) {
+                overtime = totalTime - workTime;
+                totalTime = workTime;
+            }
+
+            // check npc overtime
+            if (npcOverTime > 0 && npcOverTime <= overtime) {
+                overtime = overtime - npcOverTime;
+            } else if (npcOverTime > overtime) {
+                toggleErrorCell(cells, 'npc_overtime');
+                return false;
+            }
+            toggleErrorCell(cells, 'npc_overtime', true);
+
+            // show
+            cells.break_time.element.val(normalize(breakTime));
+            cells.small_leave.element.val('');
+            cells.leave_recovery.element.val(toHHMM(leaveRecovery));
+            cells.overtime.element.val(normalize(overtime));
+            cells.midnight.element.val('');
+            cells.total_time.element.val(normalize(totalTime));
+            cells.npc_regular_time.element.val(toHHMM(npcRegularTime));
+            cells.npc_overtime.element.val(toHHMM(npcOverTime));
+            cells.npc_midnight.element.val('');
+            console.log('OverTime');
+        } else if (endTime <= rangeMidNight[1]) { //in midnight
+            breakTime = 1;
+            totalTime = endTime - rangeRegularTime[0] - breakTime;
+
+            // check npc regular time
+            totalTime = totalTime - npcRegularTime;
+            if (totalTime < 0 || totalTime < workTime) {
+                toggleErrorCell(cells, 'npc_regular_time');
+                return false;
+            }
+            toggleErrorCell(cells, 'npc_regular_time', true);
+
+            // check leave recovery
+            totalTime = totalTime - leaveRecovery;
+            if (totalTime < 0 || (leaveRecovery > 0 && totalTime < workTime)) {
+                toggleErrorCell(cells, 'leave_recovery');
+                return false;
+            }
+            toggleErrorCell(cells, 'leave_recovery', true);
+
+            // check overtime
+            if (totalTime >= workTime) {
+                overtime = totalTime - workTime;
+                totalTime = workTime;
+            }
+
+            // check npc overtime
+            if (npcOverTime > 0 && npcOverTime <= overtime) {
+                overtime = overtime - npcOverTime;
+            } else if (npcOverTime > overtime) {
+                toggleErrorCell(cells, 'npc_overtime');
+                return false;
+            }
+            toggleErrorCell(cells, 'npc_overtime', true);
+
+            // check npc midnight
+            midnight = endTime - rangeMidNight[0];
+            if (npcMidNight > 0 && npcMidNight <= midnight) {
+                midnight = midnight - npcMidNight;
+            } else if (npcMidNight > midnight) {
+                toggleErrorCell(cells, 'npc_midnight');
+                return false;
+            }
+            toggleErrorCell(cells, 'npc_midnight', true);
+
+            cells.break_time.element.val(normalize(breakTime));
+            cells.small_leave.element.val('');
+            cells.leave_recovery.element.val(toHHMM(leaveRecovery));
+            cells.overtime.element.val(normalize(overtime));
+            cells.midnight.element.val(normalize(midnight));
+            cells.total_time.element.val(normalize(totalTime));
+            cells.npc_regular_time.element.val(toHHMM(npcRegularTime));
+            cells.npc_overtime.element.val(toHHMM(npcOverTime));
+            cells.npc_midnight.element.val(toHHMM(npcMidNight));
+            console.log('MidNight');
+        }
     }
 
     function calculate(row) {
