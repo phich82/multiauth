@@ -268,46 +268,163 @@
         // when enter values of time inputs, get timepicker for time inputs
         $(document).on('click', 'input.editable', function (e) {
             var self = this;
-            $(this).timepicker({
-                timeFormat: 'HH:mm',
-                interval: 30,
-                minTime: '00:00',
-                maxTime: '23:00',
-                defaultTime: getDefaultTime($(self).attr('name')),
-                startTime: '00:00',
-                dynamic: false,
-                dropdown: true,
-                scrollbar: false,
-                change: function (time) {
-                    if (time === false) {
-                        $(self).val('');
-                        return;
-                    }
-                    console.log(time);
-
-                    var rowThis    = $(self).closest('tr');
-                    var dataChild  = rowThis.attr('data-child');
-                    var dataParent = rowThis.attr('data-parent');
-
-                    // remove the error messages if exists
-                    rowThis.find('.error-border').removeClass('error-border');
-                    $('#result-message').html('').hide();
-
-                    if ((typeof dataChild !== typeof undefined && dataChild !== false) || (typeof dataParent !== typeof undefined && dataParent !== false)) { // exist
-                        var rows = $(config.table || 'table').find('tr[data-day="'+rowThis.attr('data-day')+'"]');
-                        if (calculateRelation(rows) === false && ['start_time[]', 'end_time[]'].indexOf($(self).attr('name')) === -1) {
-                            $(self).val(config.textDefault);
-                            calculateRelation(rows);
+            var workStatus = $(this).closest('tr').find('select[name="mst_work_statuses_id[]"]').val();
+            if (workStatus == 1) {
+                $(this).timepicker({
+                    timeFormat: 'HH:mm',
+                    interval: 30,
+                    minTime: '00:00',
+                    maxTime: '23:00',
+                    defaultTime: getDefaultTime($(self).attr('name')),
+                    startTime: '00:00',
+                    dynamic: false,
+                    dropdown: true,
+                    scrollbar: false,
+                    change: function (time) {
+                        if (time === false) {
+                            $(self).val('');
+                            return;
                         }
-                    } else {
-                        if (calculate(rowThis) === false && ['start_time[]', 'end_time[]'].indexOf($(self).attr('name')) === -1) {
-                            $(self).val(config.textDefault);
-                            calculate(rowThis);
+                        console.log(time);
+
+                        var rowThis    = $(self).closest('tr');
+                        var dataChild  = rowThis.attr('data-child');
+                        var dataParent = rowThis.attr('data-parent');
+
+                        // remove the error messages if exists
+                        rowThis.find('.error-border').removeClass('error-border');
+                        $('#result-message').html('').hide();
+
+                        if ((typeof dataChild !== typeof undefined && dataChild !== false) || (typeof dataParent !== typeof undefined && dataParent !== false)) { // exist
+                            var rows = $(config.table || 'table').find('tr[data-day="'+rowThis.attr('data-day')+'"]');
+                            if (calculateRelation(rows) === false && ['start_time[]', 'end_time[]'].indexOf($(self).attr('name')) === -1) {
+                                $(self).val(config.textDefault);
+                                calculateRelation(rows);
+                            }
+                        } else {
+                            if (calculate(rowThis) === false && ['start_time[]', 'end_time[]'].indexOf($(self).attr('name')) === -1) {
+                                $(self).val(config.textDefault);
+                                calculate(rowThis);
+                            }
+                            updateFlag(rowThis, 'update');
                         }
-                        updateFlag(rowThis, 'update');
                     }
-                }
-            });
+                });
+            }
+        });
+
+        $(document).on('change', 'select[name="mst_work_statuses_id[]"]', function (e) {
+            var workStatus = $(this).val();
+            console.log('workStatus: ' + workStatus);
+            var startTimeElement = $(this).closest('tr').find('input[name="start_time[]"]');
+            var endTimeElement = $(this).closest('tr').find('input[name="end_time[]"]');
+            if (workStatus == 2) {
+                startTimeElement.timepicker({
+                    timeFormat: 'HH:mm',
+                    interval: 30,
+                    minTime: '08:00',
+                    maxTime: '11:30',
+                    defaultTime: '08:30',
+                    startTime: '08:30',
+                    dynamic: false,
+                    dropdown: true,
+                    scrollbar: false,
+                });
+                endTimeElement.timepicker({
+                    timeFormat: 'HH:mm',
+                    interval: 30,
+                    minTime: '12:30',
+                    maxTime: '16:30',
+                    defaultTime: '12:30',
+                    startTime: '12:30',
+                    dynamic: false,
+                    dropdown: true,
+                    scrollbar: false,
+                });
+            } else {
+                startTimeElement.val('');
+                endTimeElement.val('');
+                startTimeElement.timepicker({
+                    timeFormat: 'HH:mm',
+                    interval: 30,
+                    minTime: '00:00',
+                    maxTime: '23:00',
+                    //defaultTime: getDefaultTime($(self).attr('name')),
+                    startTime: '00:00',
+                    dynamic: false,
+                    dropdown: true,
+                    scrollbar: false,
+                    // change: function (time) {
+                    //     if (time === false) {
+                    //         $(self).val('');
+                    //         return;
+                    //     }
+                    //     console.log(time);
+
+                    //     var rowThis    = $(self).closest('tr');
+                    //     var dataChild  = rowThis.attr('data-child');
+                    //     var dataParent = rowThis.attr('data-parent');
+
+                    //     // remove the error messages if exists
+                    //     rowThis.find('.error-border').removeClass('error-border');
+                    //     $('#result-message').html('').hide();
+
+                    //     if ((typeof dataChild !== typeof undefined && dataChild !== false) || (typeof dataParent !== typeof undefined && dataParent !== false)) { // exist
+                    //         var rows = $(config.table || 'table').find('tr[data-day="'+rowThis.attr('data-day')+'"]');
+                    //         if (calculateRelation(rows) === false && ['start_time[]', 'end_time[]'].indexOf($(self).attr('name')) === -1) {
+                    //             $(self).val(config.textDefault);
+                    //             calculateRelation(rows);
+                    //         }
+                    //     } else {
+                    //         if (calculate(rowThis) === false && ['start_time[]', 'end_time[]'].indexOf($(self).attr('name')) === -1) {
+                    //             $(self).val(config.textDefault);
+                    //             calculate(rowThis);
+                    //         }
+                    //         updateFlag(rowThis, 'update');
+                    //     }
+                    // }
+                });
+                endTimeElement.timepicker({
+                    timeFormat: 'HH:mm',
+                    interval: 30,
+                    minTime: '00:00',
+                    maxTime: '23:00',
+                    //defaultTime: getDefaultTime($(self).attr('name')),
+                    startTime: '00:00',
+                    dynamic: false,
+                    dropdown: true,
+                    scrollbar: false,
+                    // change: function (time) {
+                    //     if (time === false) {
+                    //         $(self).val('');
+                    //         return;
+                    //     }
+                    //     console.log(time);
+
+                    //     var rowThis    = $(self).closest('tr');
+                    //     var dataChild  = rowThis.attr('data-child');
+                    //     var dataParent = rowThis.attr('data-parent');
+
+                    //     // remove the error messages if exists
+                    //     rowThis.find('.error-border').removeClass('error-border');
+                    //     $('#result-message').html('').hide();
+
+                    //     if ((typeof dataChild !== typeof undefined && dataChild !== false) || (typeof dataParent !== typeof undefined && dataParent !== false)) { // exist
+                    //         var rows = $(config.table || 'table').find('tr[data-day="'+rowThis.attr('data-day')+'"]');
+                    //         if (calculateRelation(rows) === false && ['start_time[]', 'end_time[]'].indexOf($(self).attr('name')) === -1) {
+                    //             $(self).val(config.textDefault);
+                    //             calculateRelation(rows);
+                    //         }
+                    //     } else {
+                    //         if (calculate(rowThis) === false && ['start_time[]', 'end_time[]'].indexOf($(self).attr('name')) === -1) {
+                    //             $(self).val(config.textDefault);
+                    //             calculate(rowThis);
+                    //         }
+                    //         updateFlag(rowThis, 'update');
+                    //     }
+                    // }
+                });
+            }
         });
     });
 

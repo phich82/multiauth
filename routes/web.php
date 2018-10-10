@@ -88,3 +88,7 @@ Route::get('/grid/{type?}', function ($type = null) {
     $type = $type ?? 'grid';
     return view($type ?: 'grid');
 });
+
+Route::get('/popup', function () {
+    return view('popup');
+});
