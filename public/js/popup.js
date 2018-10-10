@@ -14,6 +14,15 @@ var popup = {
         this.selector = identity;
         return this;
     },
+    checkFn: function (arrFn) {
+        arrFn = !Array.isArray(arrFn) ? [arrFn] : arrFn;
+        arrFn.forEach(function (fn) {
+            if (typeof fn !== 'function') {
+                throw new Error('It should be a function');
+            }
+        });
+        return true;
+    },
     element: function () {
         if (!document.querySelector(this.selector)) {
             throw new Error('No any elements contains identity ['+this.identity+'].');
@@ -27,33 +36,41 @@ var popup = {
         this.element().style.display = 'block';
     },
 	confirm: function () {
-        var title   = '';
-        var message = '';
+        var title   = null;
+        var message = null;
         var yes = null;
         var no  = null;
         var buttons = null;
 
         switch (arguments.length) {
+            case 1:
+                this.checkFn(arguments[0]);
+                yes = arguments[0];
+                break;
             case 2:
-                if (typeof arguments[0] !== 'function' || typeof arguments[1] !== 'function') {
-                    throw new Error('Two arguments[1, 2] should be a function');
-                }
+                this.checkFn([arguments[0], arguments[1]]);
                 yes = arguments[0];
                 no  = arguments[1];
                 break;
-            case 4:
-                if (typeof arguments[2] !== 'function' || typeof arguments[3] !== 'function') {
-                    throw new Error('Two arguments[2, 3] should be a function');
-                }
+            case 3:
+                this.checkFn(arguments[2]);
                 title   = arguments[0];
                 message = arguments[1];
                 yes     = arguments[2];
-                no      = arguments[3];
+                break;
+            case 4:
+                title   = arguments[0];
+                message = arguments[1];
+                if (typeof arguments[2] === 'function') {
+                    yes = arguments[2];
+                    no  = arguments[3];
+                } else if (typeof arguments[2] === 'object') {
+                    buttons = arguments[2];
+                    yes     = arguments[3];
+                }
                 break;
             case 5:
-                if (typeof arguments[3] !== 'function' || typeof arguments[4] !== 'function') {
-                    throw new Error('Two arguments[3, 4] should be a function');
-                }
+                this.checkFn([arguments[3], arguments[4]]);
                 title   = arguments[0];
                 message = arguments[1];
                 buttons = arguments[2];
@@ -61,14 +78,17 @@ var popup = {
                 no      = arguments[4];
                 break;
             default:
-                throw new Error('Only accepted 2 or 4 arguments.');
-
+                throw new Error('Only accepted [1-5] arguments.');
         }
-        this.element().querySelector('.modal-title').innerHTML   = title;
-        this.element().querySelector('.modal-message').innerHTML = message;
+        if (title !== null) {
+            this.element().querySelector('.modal-title').innerHTML = title;
+        }
+        if (message !== null) {
+            this.element().querySelector('.modal-message').innerHTML = message;
+        }
         if (buttons && typeof buttons === 'object') {
             if (buttons.ok) {
-                this.element().querySelector('.btnSaveModal').innerHTML   = buttons.ok;
+                this.element().querySelector('.btnSaveModal').innerHTML = buttons.ok;
             }
             if (buttons.cancel) {
                 this.element().querySelector('.btnCancelModal').innerHTML = buttons.cancel;
@@ -81,14 +101,14 @@ var popup = {
     yes: function(element) {
         if (typeof this.events.yes === 'function') {
             this.events.yes.call(null, element);
-            this.close();
         }
+        this.close();
     },
     no: function(element) {
         if (typeof this.events.no === 'function') {
             this.events.no.call(null, element);
-            this.close();
         }
+        this.close();
     },
     closest: function (elem, selector) {
         var firstChar = selector.charAt(0);

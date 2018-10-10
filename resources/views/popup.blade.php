@@ -17,8 +17,6 @@
     function openPopup() {
         popup.confirm('Header Title', 'This is test content', {ok: 'Yes', cancel: 'No'}, function ok(element) {
             alert(element);
-        }, function no(element) {
-            alert(element);
         });
     }
 </script>
