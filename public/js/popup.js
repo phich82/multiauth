@@ -1,8 +1,18 @@
 var popup = {
     selector: '.popup',
+    classMultipleFooter: '.modal-footer-multiple',
+    classSingleFooter: '.modal-footer-single',
+    classTitle: '.modal-title',
+    classMessage: '.modal-message',
+    classSaveButton: '.btnSaveModal',
+    classCancelButton: '.btnCancelModal',
+    classCloseButton: 'btnCloseModal',
+    valueShowDisplay: 'block',
+    valueHideDisplay: 'none',
+    isWaiting: false,
     events: {yes: null, no: null},
-    id: function (idName) {
-        return this.setIdentity('#'+idName);
+    id: function (id) {
+        return this.setIdentity('#'+id);
     },
     class: function (className) {
         return this.setIdentity('.'+className);
@@ -14,6 +24,30 @@ var popup = {
         this.selector = identity;
         return this;
     },
+    wait: function () {
+        this.isWaiting = true;
+        return this;
+    },
+    config: function (config) {
+
+    },
+    setDisplayAttr: function (identity, value) {
+        if (value === undefined) {
+            this.element().style.display = identity;
+        } else {
+            this.element().querySelector(identity).style.display = value;
+        }
+    },
+    setButtons: function (isMultiple) {
+        isMultiple = typeof isMultiple === 'boolean' ? isMultiple : true;
+        this.setDisplayAttr(this.classMultipleFooter, isMultiple ? this.valueShowDisplay : this.valueHideDisplay);
+        this.setDisplayAttr(this.classSingleFooter, isMultiple ? this.valueHideDisplay : this.valueShowDisplay);
+    },
+    setHtml: function (identity, html) {
+        if (identity && html !== undefined) {
+            this.element().querySelector(identity).innerHTML = html;
+        }
+    },
     checkFn: function (arrFn) {
         arrFn = !Array.isArray(arrFn) ? [arrFn] : arrFn;
         arrFn.forEach(function (fn) {
@@ -23,24 +57,41 @@ var popup = {
         });
         return true;
     },
-    element: function () {
-        if (!document.querySelector(this.selector)) {
-            throw new Error('No any elements contains identity ['+this.identity+'].');
+    element: function (identity) {
+        identity = identity ? identity : this.selector;
+        var element = document.querySelector(identity);
+        if (!element) {
+            throw new Error('No any elements contains identity ['+identity+'].');
         }
-        return document.querySelector(this.selector);
+        return element;
+    },
+    closest: function (elem, selector) {
+        var firstChar = selector.charAt(0);
+        // Get closest matching element
+        for (; elem && elem !== document; elem = elem.parentNode) {
+            // If selector is a class
+            if (firstChar === '.' && elem.classList.contains(selector.substr(1))) { return elem; }
+            // If selector is an ID
+            if (firstChar === '#' && elem.id === selector.substr(1)) { return elem; }
+            // If selector is a data attribute
+            if (firstChar === '[' && elem.hasAttribute(selector.substr(1, selector.length - 2))) { return elem; }
+            // If selector is a tag
+            if (elem.tagName.toLowerCase() === selector) { return elem; }
+        }
+        return null;
     },
     close: function () {
-        this.element().style.display = 'none';
+        this.setDisplayAttr(this.valueHideDisplay);
     },
     open: function () {
-        this.element().style.display = 'block';
+        this.setDisplayAttr(this.valueShowDisplay);
     },
 	confirm: function () {
-        var title   = null;
-        var message = null;
-        var yes = null;
-        var no  = null;
-        var buttons = null;
+        var title   = null,
+            message = null,
+            buttons = null,
+            yes = null,
+            no  = null;
 
         switch (arguments.length) {
             case 1:
@@ -80,49 +131,59 @@ var popup = {
             default:
                 throw new Error('Only accepted [1-5] arguments.');
         }
-        if (title !== null) {
-            this.element().querySelector('.modal-title').innerHTML = title;
+        this.setHtml(this.classTitle, title);
+        this.setHtml(this.classMessage, message);
+        if (buttons) {
+            this.setHtml(this.classSaveButton, buttons.ok);
+            this.setHtml(this.classCancelButton, buttons.cancel);
         }
-        if (message !== null) {
-            this.element().querySelector('.modal-message').innerHTML = message;
-        }
-        if (buttons && typeof buttons === 'object') {
-            if (buttons.ok) {
-                this.element().querySelector('.btnSaveModal').innerHTML = buttons.ok;
-            }
-            if (buttons.cancel) {
-                this.element().querySelector('.btnCancelModal').innerHTML = buttons.cancel;
-            }
-        }
-        this.open();
+
         this.events.yes = yes;
         this.events.no  = no;
+        this.open();
+        return this;
+    },
+    success: function (title, message, fn) {
+        this.setHtml(this.classTitle, title);
+        this.setHtml(this.classMessage, message);
+        this.events.no = fn;
+        this.setButtons(false);
+        this.open();
+        return this;
+    },
+    error: function (title, message, fn) {
+        this.setHtml(this.classTitle, title);
+        this.setHtml(this.classMessage, message);
+        this.events.no = fn;
+        this.setButtons(false);
+        this.open();
+        return this;
+    },
+    warning: function (title, message, fn) {
+        this.setHtml(this.classTitle, title);
+        this.setHtml(this.classMessage, message);
+        this.events.no = fn;
+        this.setButtons(false);
+        this.open();
+        return this;
     },
     yes: function(element) {
-        if (typeof this.events.yes === 'function') {
-            this.events.yes.call(null, element);
-        }
-        this.close();
+        this.call('yes', element);
     },
     no: function(element) {
-        if (typeof this.events.no === 'function') {
-            this.events.no.call(null, element);
-        }
-        this.close();
+        this.call('no', element);
     },
-    closest: function (elem, selector) {
-        var firstChar = selector.charAt(0);
-        // Get closest match
-        for (; elem && elem !== document; elem = elem.parentNode) {
-            // If selector is a class
-            if (firstChar === '.' && elem.classList.contains(selector.substr(1))) { return elem; }
-            // If selector is an ID
-            if (firstChar === '#' && elem.id === selector.substr(1)) { return elem; }
-            // If selector is a data attribute
-            if (firstChar === '[' && elem.hasAttribute(selector.substr(1, selector.length - 2))) { return elem; }
-            // If selector is a tag
-            if (elem.tagName.toLowerCase() === selector) { return elem; }
+    call: function (name, element) {
+        if (typeof this.events[name] === 'function') {
+            this.events[name].call(null, element);
         }
-        return null;
+        this.next();
+    },
+    next: function () {
+        if (!this.isWaiting) {
+            this.close();
+            this.setButtons();
+        }
+        this.isWaiting = false;
     }
 };
