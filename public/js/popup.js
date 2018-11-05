@@ -12,7 +12,7 @@ const popup = {
     isWaiting: false,
     events: {yes: null, no: null},
     typeMessage: null,
-    _config: {},
+    _config: null,
     id: function (id) {
         return this.setIdentity('#'+id);
     },
@@ -74,6 +74,12 @@ const popup = {
             case 'warning':
                 icon = '<i class="glyphicon glyphicon-warning-sign text-warning" style="font-size: 24px;"></i>';
                 break;
+            case 'info':
+                icon = '<i class="glyphicon glyphicon-info-sign text-info" style="font-size: 24px;"></i>';
+                break;
+            case 'confirm':
+                icon = '<i class="glyphicon glyphicon-question-sign text-primary" style="font-size: 24px;"></i>';
+                break;
         }
         return icon;
     },
@@ -111,19 +117,38 @@ const popup = {
     },
     close: function () {
         this.setDisplayAttr(this.valueHideDisplay);
+        this._config = null;
     },
     open: function () {
         this.setDisplayAttr(this.valueShowDisplay);
     },
-    action: function (title, message, fn) {
-        if (arguments.length === 3 || arguments.length === 2) {
-            this.setHtml(this.classTitle, this.getIcon(this.typeMessage)+title);
-            this.setHtml(this.classMessage, message);
-            this.events.no = fn;
+    show: function (title, message, fn) {
+        var callback = function () {};
+        if (arguments.length === 0) {
+            this.setConfig();
         } else if (arguments.length === 1 && typeof arguments[0] === 'function') {
             this.setConfig();
-            this.events.no = arguments[0];
+            callback = arguments[0];
+        } else if (arguments.length === 1 && typeof arguments[0] === 'object') {
+            this._config = arguments[0];
+            this.setConfig();
+        } else if (arguments.length === 2 && typeof arguments[0] === 'object' && typeof arguments[1] === 'function') {
+            this._config = arguments[0];
+            this.setConfig();
+            callback = arguments[1];
+        } else if (arguments.length === 2 && typeof arguments[0] === 'string' && arguments[1] === 'string') {
+            this.setConfig();
+            this.setHtml(this.classTitle, this.getIcon(this.typeMessage)+title);
+            this.setHtml(this.classMessage, message);
+        } else if (arguments.length === 3) {
+            this.setConfig();
+            this.setHtml(this.classTitle, this.getIcon(this.typeMessage)+arguments[0]);
+            this.setHtml(this.classMessage, arguments[1]);
+            callback = arguments[2];
+        } else {
+            throw new Error('Input arguments is invalid.');
         }
+        this.events.no = callback;
         this.setButtons(false);
         this.open();
         return this;
@@ -187,15 +212,19 @@ const popup = {
     },
     success: function () {
         this.typeMessage = 'success';
-        return this.action(...arguments);
+        return this.show(...arguments);
     },
     error: function () {
         this.typeMessage = 'error';
-        return this.action(...arguments);
+        return this.show(...arguments);
     },
     warning: function () {
         this.typeMessage = 'warning';
-        return this.action(...arguments);
+        return this.show(...arguments);
+    },
+    info: function () {
+        this.typeMessage = 'info';
+        return this.show(...arguments);
     },
     yes: function(element) {
         this.call('yes', element);

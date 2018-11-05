@@ -39,7 +39,8 @@
         //         });
         //     });
         // });
-        popup.config(app.popup.timereport.success).success(function () {
+        //popup.config(app.popup.timereport.success).success(function () {
+        popup.success(app.popup.timereport.success, function () {
             popup.wait();
             popup.config(app.popup.timereport.error).error(function () {
                 popup.wait();
@@ -47,7 +48,10 @@
                     alert(3);
                     popup.wait();
                     popup.success('S4', 'It will redirect to Home page after closing this dialog.', function () {
-                        window.location.href = "{{ route('home') }}";
+                        //window.location.href = "{{ route('home') }}";
+                        popup.wait();
+                        //popup.config(app.popup.timereport.info).info();
+                        popup.info(app.popup.timereport.info);
                     });
                 });
             });

@@ -2,6 +2,15 @@ var app = app || {};
 
 app.popup = {
     timereport: {
+        confirm: {
+            title: '',
+            message: '',
+            buttons: {
+                ok: 'OK',
+                no: 'Cancel'
+            },
+            //type: 'confirm'
+        },
         success: {
             title: 'Saved',
             message: 'A row has been saved successfully.',
@@ -24,7 +33,15 @@ app.popup = {
             buttons: {
                 close: 'Close'
             },
-            //type: 'success'
+            //type: 'warning'
+        },
+        info: {
+            title: 'Notification',
+            message: 'Missing data.',
+            buttons: {
+                close: 'Close'
+            },
+            //type: 'info'
         }
     }
 }
