@@ -1,83 +1,66 @@
-const popup = {
-    selector: '.popup',
-    classMultipleFooter: '.modal-footer-multiple',
-    classSingleFooter: '.modal-footer-single',
-    classTitle: '.modal-title',
-    classMessage: '.modal-message',
-    classSaveButton: '.btnSaveModal',
-    classCancelButton: '.btnCancelModal',
-    classCloseButton: '.btnCloseModal',
-    valueShowDisplay: 'block',
-    valueHideDisplay: 'none',
-    isWaiting: false,
-    events: {yes: null, no: null},
-    typeMessage: null,
-    _config: {},
-    id: function (id) {
+const dialog = (function () {
+    function Dialog() {
+        this.selector = '.popup ';
+        this.classMultipleFooter = '.modal-footer-multiple ';
+        this.classSingleFooter = '.modal-footer-single ';
+        this.classTitle = '.modal-title ';
+        this.classMessage = '.modal-message ';
+        this.classSaveButton = '.btnSaveModal ';
+        this.classCancelButton = '.btnCancelModal ';
+        this.classCloseButton = 'btnCloseModal ';
+        this.valueShowDisplay = 'block ';
+        this.valueHideDisplay = 'none ';
+        this.isWaiting = false;
+        this.events = {yes: null, no: null};
+    }
+
+    Dialog.prototype.id = function (id) {
         return this.setIdentity('#'+id);
-    },
-    class: function (className) {
+    };
+
+    Dialog.prototype.class = function (className) {
         return this.setIdentity('.'+className);
-    },
-    identity: function (identity) {
+    };
+
+    Dialog.prototype.identity = function (identity) {
         return this.setIdentity(identity);
-    },
-    setIdentity: function (identity) {
+    };
+
+    Dialog.prototype.setIdentity = function (identity) {
         this.selector = identity;
         return this;
-    },
-    wait: function () {
+    };
+
+    Dialog.prototype.wait = function () {
         this.isWaiting = true;
         return this;
-    },
-    config: function (config) {
-        this._config = config;
-        return this;
-    },
-    setConfig: function () {
-        if (this._config && typeof this._config === 'object') {
-            this.setHtml(this.classTitle, this.getIcon(this._config.type || this.typeMessage)+this._config.title);
-            this.setHtml(this.classMessage, this._config.message);
-            if (this._config.buttons) {
-                this.setHtml(this.classSaveButton, this._config.buttons.ok);
-                this.setHtml(this.classCancelButton, this._config.buttons.no);
-                this.setHtml(this.classCloseButton, this._config.buttons.close);
-            }
-        }
-    },
-    setDisplayAttr: function (identity, value) {
+    };
+
+    Dialog.prototype.config = function (config) {
+
+    };
+
+    Dialog.prototype.setDisplayAttr = function (identity, value) {
         if (value === undefined) {
             this.element().style.display = identity;
         } else {
             this.element().querySelector(identity).style.display = value;
         }
-    },
-    setButtons: function (isMultiple) {
+    };
+
+    Dialog.prototype.setButtons = function (isMultiple) {
         isMultiple = typeof isMultiple === 'boolean' ? isMultiple : true;
         this.setDisplayAttr(this.classMultipleFooter, isMultiple ? this.valueShowDisplay : this.valueHideDisplay);
         this.setDisplayAttr(this.classSingleFooter, isMultiple ? this.valueHideDisplay : this.valueShowDisplay);
-    },
-    setHtml: function (identity, html) {
+    };
+
+    Dialog.prototype.setHtml = function (identity, html) {
         if (identity && html !== undefined) {
             this.element().querySelector(identity).innerHTML = html;
         }
-    },
-    getIcon: function (type) {
-        var icon;
-        switch (type) {
-            case 'success':
-                icon = '<i class="glyphicon glyphicon-ok text-success" style="font-size: 24px;"></i>';
-                break;
-            case 'error':
-                icon = '<i class="glyphicon glyphicon-remove-sign text-danger" style="font-size: 24px;"></i>';
-                break;
-            case 'warning':
-                icon = '<i class="glyphicon glyphicon-warning-sign text-warning" style="font-size: 24px;"></i>';
-                break;
-        }
-        return icon;
-    },
-    checkFn: function (arrFn) {
+    };
+
+    Dialog.prototype.checkFn = function (arrFn) {
         arrFn = !Array.isArray(arrFn) ? [arrFn] : arrFn;
         arrFn.forEach(function (fn) {
             if (typeof fn !== 'function') {
@@ -85,16 +68,18 @@ const popup = {
             }
         });
         return true;
-    },
-    element: function (identity) {
+    };
+
+    Dialog.prototype.element = function (identity) {
         identity = identity ? identity : this.selector;
         var element = document.querySelector(identity);
         if (!element) {
             throw new Error('No any elements contains identity ['+identity+'].');
         }
         return element;
-    },
-    closest: function (elem, selector) {
+    };
+
+    Dialog.prototype.closest = function (elem, selector) {
         var firstChar = selector.charAt(0);
         // Get closest matching element
         for (; elem && elem !== document; elem = elem.parentNode) {
@@ -108,27 +93,17 @@ const popup = {
             if (elem.tagName.toLowerCase() === selector) { return elem; }
         }
         return null;
-    },
-    close: function () {
+    };
+
+    Dialog.prototype.close = function () {
         this.setDisplayAttr(this.valueHideDisplay);
-    },
-    open: function () {
+    };
+
+    Dialog.prototype.open = function () {
         this.setDisplayAttr(this.valueShowDisplay);
-    },
-    action: function (title, message, fn) {
-        if (arguments.length === 3 || arguments.length === 2) {
-            this.setHtml(this.classTitle, this.getIcon(this.typeMessage)+title);
-            this.setHtml(this.classMessage, message);
-            this.events.no = fn;
-        } else if (arguments.length === 1 && typeof arguments[0] === 'function') {
-            this.setConfig();
-            this.events.no = arguments[0];
-        }
-        this.setButtons(false);
-        this.open();
-        return this;
-    },
-	confirm: function () {
+    };
+
+	Dialog.prototype.confirm = function () {
         var title   = null,
             message = null,
             buttons = null,
@@ -176,44 +151,73 @@ const popup = {
         this.setHtml(this.classTitle, title);
         this.setHtml(this.classMessage, message);
         if (buttons) {
-            this.setHtml(this.classSaveButton, buttons.ok);
-            this.setHtml(this.classCancelButton, buttons.cancel);
+            setHtml(this.classSaveButton, buttons.ok);
+            setHtml(this.classCancelButton, buttons.cancel);
         }
 
         this.events.yes = yes;
         this.events.no  = no;
         this.open();
         return this;
-    },
-    success: function () {
-        this.typeMessage = 'success';
-        return this.action(...arguments);
-    },
-    error: function () {
-        this.typeMessage = 'error';
-        return this.action(...arguments);
-    },
-    warning: function () {
-        this.typeMessage = 'warning';
-        return this.action(...arguments);
-    },
-    yes: function(element) {
+    };
+
+    Dialog.prototype.success = function (title, message, fn) {
+        this.setHtml(this.classTitle, title);
+        this.setHtml(this.classMessage, message);
+        this.events.no = fn;
+        this.setButtons(false);
+        this.open();
+        return this;
+    };
+
+    Dialog.prototype.error = function (title, message, fn) {
+        this.setHtml(this.classTitle, title);
+        this.setHtml(this.classMessage, message);
+        this.events.no = fn;
+        this.setButtons(false);
+        this.open();
+        return this;
+    };
+
+    Dialog.prototype.warning = function (title, message, fn) {
+        this.setHtml(this.classTitle, title);
+        this.setHtml(this.classMessage, message);
+        this.events.no = fn;
+        this.setButtons(false);
+        this.open();
+        return this;
+    };
+
+    Dialog.prototype.yes = function(element) {
         this.call('yes', element);
-    },
-    no: function(element) {
+    };
+
+    Dialog.prototype.no = function(element) {
         this.call('no', element);
-    },
-    call: function (name, element) {
+    };
+
+    Dialog.prototype.call = function (name, element) {
         if (typeof this.events[name] === 'function') {
             this.events[name].call(null, element);
         }
         this.next();
-    },
-    next: function () {
+    };
+
+    Dialog.prototype.next = function () {
         if (!this.isWaiting) {
             this.close();
             this.setButtons();
         }
         this.isWaiting = false;
-    }
-};
+    };
+
+    // return {
+    //     id: Dialog.prototype.id,
+    //     wait: Dialog.prototype.wait,
+    //     confirm: Dialog.prototype.confirm,
+    //     success: Dialog.prototype.id,
+    //     error: Dialog.prototype.id,
+    //     warning: Dialog.prototype.id,
+    // };
+    return new Dialog;
+})();
