@@ -3,8 +3,8 @@ var app = app || {};
 app.popup = {
     timereport: {
         confirm: {
-            title: '',
-            message: '',
+            title: 'Confirm',
+            message: 'This is a confirmation.',
             buttons: {
                 ok: 'OK',
                 no: 'Cancel'

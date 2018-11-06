@@ -11,8 +11,11 @@ const popup = {
     valueHideDisplay: 'none',
     isWaiting: false,
     events: {yes: null, no: null},
-    typeMessage: null,
+    type: null,
+    _msgLeave: null,
     _config: null,
+    _icon: '',
+    _withIcon: false,
     id: function (id) {
         return this.setIdentity('#'+id);
     },
@@ -35,8 +38,9 @@ const popup = {
         return this;
     },
     setConfig: function () {
-        if (this._config && typeof this._config === 'object') {
-            this.setHtml(this.classTitle, this.getIcon(this._config.type || this.typeMessage)+this._config.title);
+        if (this._config && this.checkJson(this._config)) {
+            var icon = this._icon || this.getIcon(this._config.type || this.type);
+            this.setHtml(this.classTitle, icon+this._config.title);
             this.setHtml(this.classMessage, this._config.message);
             if (this._config.buttons) {
                 this.setHtml(this.classSaveButton, this._config.buttons.ok);
@@ -53,7 +57,7 @@ const popup = {
         }
     },
     setButtons: function (isMultiple) {
-        isMultiple = typeof isMultiple === 'boolean' ? isMultiple : true;
+        isMultiple = this.checkBool(isMultiple) ? isMultiple : true;
         this.setDisplayAttr(this.classMultipleFooter, isMultiple ? this.valueShowDisplay : this.valueHideDisplay);
         this.setDisplayAttr(this.classSingleFooter, isMultiple ? this.valueHideDisplay : this.valueShowDisplay);
     },
@@ -80,17 +84,51 @@ const popup = {
             case 'confirm':
                 icon = '<i class="glyphicon glyphicon-question-sign text-primary" style="font-size: 24px;"></i>';
                 break;
+            default:
+                icon = '';
         }
         return icon;
     },
+    icon: function (icon) {
+        this._withIcon = true;
+        this._icon = icon || '';
+        return this;
+    },
+    withIcon: function (icon) {
+        return this.icon(icon);
+    },
+    message: function (msg) {
+        this._msgLeave = msg;
+        return this;
+    },
+    resetDefault: function () {
+        this._icon = '';
+        this._withIcon = false;
+        this._config = null;
+        this._msgLeave = null;
+    },
     checkFn: function (arrFn) {
-        arrFn = !Array.isArray(arrFn) ? [arrFn] : arrFn;
-        arrFn.forEach(function (fn) {
-            if (typeof fn !== 'function') {
-                throw new Error('It should be a function');
+        return this.checkType(arrFn, 'function');
+    },
+    checkJson: function (arrJson) {
+        return this.checkType(arrJson, 'object');
+    },
+    checkStr: function (arrStr) {
+        return this.checkType(arrStr, 'string');
+    },
+    checkBool: function (arrBool) {
+        return this.checkType(arrBool, 'boolean');
+    },
+    checkType: function (arrInput, type) {
+        var flag = true;
+        arrInput = !Array.isArray(arrInput) ? [arrInput] : arrInput;
+        arrInput.forEach(function (input) {
+            if (typeof input !== type) {
+                flag = false;
+                return false;
             }
         });
-        return true;
+        return flag;
     },
     element: function (identity) {
         identity = identity ? identity : this.selector;
@@ -117,32 +155,42 @@ const popup = {
     },
     close: function () {
         this.setDisplayAttr(this.valueHideDisplay);
-        this._config = null;
     },
     open: function () {
         this.setDisplayAttr(this.valueShowDisplay);
     },
     show: function (title, message, fn) {
         var callback = function () {};
-        if (arguments.length === 0) {
+        var numArgs = arguments.length;
+        var icon = '';
+
+        if (numArgs === 0) {
             this.setConfig();
-        } else if (arguments.length === 1 && typeof arguments[0] === 'function') {
+        } else if (numArgs === 1 && this.checkFn(arguments[0])) {
             this.setConfig();
             callback = arguments[0];
-        } else if (arguments.length === 1 && typeof arguments[0] === 'object') {
+        } else if (numArgs === 1 && this.checkJson(arguments[0])) {
             this._config = arguments[0];
             this.setConfig();
-        } else if (arguments.length === 2 && typeof arguments[0] === 'object' && typeof arguments[1] === 'function') {
+        } else if (numArgs === 2 && this.checkJson(arguments[0]) && this.checkFn(arguments[1])) {
             this._config = arguments[0];
             this.setConfig();
             callback = arguments[1];
-        } else if (arguments.length === 2 && typeof arguments[0] === 'string' && arguments[1] === 'string') {
+        } else if (numArgs === 2 && this.checkStr([arguments[0], arguments[1]])) {
             this.setConfig();
-            this.setHtml(this.classTitle, this.getIcon(this.typeMessage)+title);
-            this.setHtml(this.classMessage, message);
-        } else if (arguments.length === 3) {
+            icon = this.getIcon(this.type);
+            if (this._withIcon && this._icon) {
+                icon = this._icon;
+            }
+            this.setHtml(this.classTitle, icon+arguments[0]);
+            this.setHtml(this.classMessage, arguments[1]);
+        } else if (numArgs === 3) {
             this.setConfig();
-            this.setHtml(this.classTitle, this.getIcon(this.typeMessage)+arguments[0]);
+            icon = this.getIcon(this.type);
+            if (this._withIcon && this._icon) {
+                icon = this._icon;
+            }
+            this.setHtml(this.classTitle, icon+arguments[0]);
             this.setHtml(this.classMessage, arguments[1]);
             callback = arguments[2];
         } else {
@@ -157,38 +205,65 @@ const popup = {
         var title   = null,
             message = null,
             buttons = null,
-            yes = null,
-            no  = null;
+            yes = function () {},
+            no  = function () {};
 
+        this.type = 'confirm';
+        // get icon if any
+        if (this._withIcon) {
+            this._icon = this._icon ? this._icon : this.getIcon(this.type);
+        }
+
+        // process input arguments
         switch (arguments.length) {
             case 1:
-                this.checkFn(arguments[0]);
-                yes = arguments[0];
+                if (this.checkJson(arguments[0])) {
+                    this._config = arguments[0];
+                } else if (this.checkFn(arguments[0])) {
+                    yes = arguments[0];
+                } else {
+                    throw new Error('Argument should be a json or a function.');
+                }
                 break;
             case 2:
-                this.checkFn([arguments[0], arguments[1]]);
-                yes = arguments[0];
-                no  = arguments[1];
+                if (this.checkJson(arguments[0]) && this.checkFn(arguments[1])) {
+                    this._config = arguments[0];
+                    yes = arguments[1];
+                } else if (this.checkFn([arguments[0], arguments[1]])) {
+                    yes = arguments[0];
+                    no  = arguments[1];
+                } else {
+                    throw new Error('Arguments should be a json or a function.');
+                }
                 break;
             case 3:
-                this.checkFn(arguments[2]);
                 title   = arguments[0];
                 message = arguments[1];
-                yes     = arguments[2];
+                if (this.checkFn(arguments[2])) {
+                    yes = arguments[2];
+                } else if (this.checkJson(arguments[2])) {
+                    buttons = arguments[2];
+                } else {
+                    throw new Error('Third argument should be a json or a function.');
+                }
                 break;
             case 4:
                 title   = arguments[0];
                 message = arguments[1];
-                if (typeof arguments[2] === 'function') {
+                if (this.checkFn([arguments[2], arguments[3]])) {
                     yes = arguments[2];
                     no  = arguments[3];
-                } else if (typeof arguments[2] === 'object') {
+                } else if (this.checkJson(arguments[2]) && this.checkFn(arguments[3])) {
                     buttons = arguments[2];
                     yes     = arguments[3];
+                } else {
+                    throw new Error('Third argument or forth argument should be a json or a function.');
                 }
                 break;
             case 5:
-                this.checkFn([arguments[3], arguments[4]]);
+                if (!this.checkFn(arguments[3]) || !this.checkFn(arguments[4])) {
+                    throw new Error('Third, forth arguments should be a function.');
+                }
                 title   = arguments[0];
                 message = arguments[1];
                 buttons = arguments[2];
@@ -196,13 +271,19 @@ const popup = {
                 no      = arguments[4];
                 break;
             default:
-                throw new Error('Only accepted [1-5] arguments.');
+                throw new Error('Only accept the maximum five arguments.');
         }
-        this.setHtml(this.classTitle, title);
-        this.setHtml(this.classMessage, message);
-        if (buttons) {
-            this.setHtml(this.classSaveButton, buttons.ok);
-            this.setHtml(this.classCancelButton, buttons.cancel);
+
+        // change title, meaasge and text of buttons if any
+        if (title !== null || message !== null || buttons !== null){
+            this.setHtml(this.classTitle, this._icon+title);
+            this.setHtml(this.classMessage, message);
+            if (buttons) {
+                this.setHtml(this.classSaveButton, buttons.ok);
+                this.setHtml(this.classCancelButton, buttons.no);
+            }
+        } else if (this._config) {
+            this.setConfig();
         }
 
         this.events.yes = yes;
@@ -211,20 +292,24 @@ const popup = {
         return this;
     },
     success: function () {
-        this.typeMessage = 'success';
+        this.type = 'success';
         return this.show(...arguments);
     },
     error: function () {
-        this.typeMessage = 'error';
+        this.type = 'error';
         return this.show(...arguments);
     },
     warning: function () {
-        this.typeMessage = 'warning';
+        this.type = 'warning';
         return this.show(...arguments);
     },
     info: function () {
-        this.typeMessage = 'info';
+        this.type = 'info';
         return this.show(...arguments);
+    },
+    leave: function (message) {
+        var msgDefaut = 'The previous changed date could be lost if leave or reload!';
+        return message || this._msgLeave || msgDefaut;
     },
     yes: function(element) {
         this.call('yes', element);
@@ -233,8 +318,9 @@ const popup = {
         this.call('no', element);
     },
     call: function (name, element) {
-        if (typeof this.events[name] === 'function') {
+        if (this.checkFn(this.events[name])) {
             this.events[name].call(null, element);
+            this.resetDefault();
         }
         this.next();
     },

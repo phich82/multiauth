@@ -15,8 +15,15 @@
 <script src="{{ asset('js/popup.js') }}"></script>
 <script src="{{ asset('js/dialog.js') }}"></script>
 <script>
+    // confirm before refresh or close or redirect to other page
+    window.onbeforeunload = function (e) {
+        var message = popup.leave();
+        e.returnValue = message;
+        return message;
+    };
+
     function openPopup() {
-        var config = ['<i class="fa fa-exclamation-triangle" style="font-size:30px;" aria-hidden="true"></i> Header Title', 'This is test content', {ok: 'Yes', cancel: 'No'}];
+        var config = ['<i class="fa fa-exclamation-triangle" style="font-size:30px;" aria-hidden="true"></i> Header Title', 'This is test content', {ok: 'Yes', no: 'No'}];
         // popup.confirm(...config, function (element) {
         //     alert();
         //     popup.wait();
@@ -56,6 +63,11 @@
                 });
             });
         });
+        // popup.withIcon().config(app.popup.timereport.confirm).confirm('XXX', 'XXXXXXXX', function (){}, function () {
+        //     alert(222);
+        // }, function () {
+        //     alert(000)
+        // });
         // console.log(dialog);
         // dialog.success('Success', '<div class="text-center">Success</div>', function () {
         //     dialog.wait();
