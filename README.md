@@ -21,3 +21,6 @@
         > git remote add bitbucket https://phich82@bitbucket.org/phich82/jwtauth.git (from bitbucket.org)
             => At here, you can enter username/password if required
         > git push bitbucket master
+
+# Color for log when run Tests
+    phpunit TestS --colors=always | cat

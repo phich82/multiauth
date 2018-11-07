@@ -92,3 +92,5 @@ Route::get('/grid/{type?}', function ($type = null) {
 Route::get('/popup', function () {
     return view('popup');
 });
+
+Route::name('export-excel')->get('export-excel', 'ExcelController@exportExcel');

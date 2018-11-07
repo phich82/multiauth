@@ -2,7 +2,8 @@
 
 @section('content')
 <div class="container">
-    <button onclick="openPopup()">Open Popup</button>
+    <button class="btn btn-primary" onclick="openPopup()">Open Popup</button><br/><br/>
+    <button class="btn btn-secondary" onclick="exportExcel()">Export To Excel</button>
 </div>
 @endsection
 @include('partials.popup')
@@ -21,6 +22,18 @@
         e.returnValue = message;
         return message;
     };
+
+    function exportExcel() {
+        window.location.href = "{{ route('export-excel') }}";
+        // $.ajax({
+        //     url: "{{ route('export-excel') }}",
+        //     //dataType: 'json',
+        //     success: function (data, status, xhr) {
+        //         console.log(data);
+        //         console.log(xhr);
+        //     }
+        // });
+    }
 
     function openPopup() {
         var config = ['<i class="fa fa-exclamation-triangle" style="font-size:30px;" aria-hidden="true"></i> Header Title', 'This is test content', {ok: 'Yes', no: 'No'}];
