@@ -11,16 +11,23 @@ class ExcelService
         //$spreadsheet = IOFactory::load(storage_path('files/template.xlsx'));
         //$worksheet = $spreadsheet->getActiveSheet();
 
-        $reader = IOFactory::createReader("Xlsx");
+        $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
         $spreadsheet = $reader->load(storage_path('files/template.xlsx'));
         $worksheet = $spreadsheet->getActiveSheet();
 
         //$worksheet->getCell('A1')->setValue('John');
         //$worksheet->getCell('A2')->setValue('Smith');
 
-        //$worksheet->insertNewRowBefore(8, 1);
-        //$worksheet->duplicateStyle($worksheet->getStyle('B7'), 'B8:B8');
-dd($worksheet->getCell('B7')->getDataValidation());
+        // add new rows
+        $worksheet->insertNewRowBefore(8, 1);
+        // copy style of this cell to other cell
+        $worksheet->duplicateStyle($worksheet->getStyle('B7'), 'B8:B8');
+        // set data validation for cell
+        $worksheet->getCell('B8')->getDataValidation()
+            ->setType(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::TYPE_LIST)
+            ->setFormula1('Sheet2!$A$2:$A$9')
+            ->setShowDropDown(true);
+//dd($worksheet->getCell('B7')->getDataValidation());
         $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
         $writer->save(storage_path('files/saved/write.xlsx'));
         /* Here there will be some code where you create $spreadsheet */
