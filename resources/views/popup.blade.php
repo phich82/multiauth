@@ -3,7 +3,8 @@
 @section('content')
 <div class="container">
     <button class="btn btn-primary" onclick="openPopup()">Open Popup</button><br/><br/>
-    <button class="btn btn-secondary" onclick="exportExcel()">Export To Excel</button>
+    <button class="btn btn-secondary" onclick="exportExcel()">Export To Excel</button><br/><br/>
+    <button class="btn btn-secondary" onclick="downloadExcel()">Download Excel</button>
 </div>
 @endsection
 @include('partials.popup')
@@ -25,6 +26,18 @@
 
     function exportExcel() {
         window.location.href = "{{ route('export-excel') }}";
+        // $.ajax({
+        //     url: "{{ route('export-excel') }}",
+        //     //dataType: 'json',
+        //     success: function (data, status, xhr) {
+        //         console.log(data);
+        //         console.log(xhr);
+        //     }
+        // });
+    }
+
+    function downloadExcel() {
+        window.location.href = "{{ route('download-excel') }}";
         // $.ajax({
         //     url: "{{ route('export-excel') }}",
         //     //dataType: 'json',

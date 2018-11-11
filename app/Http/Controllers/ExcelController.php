@@ -9,7 +9,25 @@ class ExcelController extends Controller
 {
     public function exportExcel(ExcelService $excelService)
     {
-        $data = [
+        $data = $this->mockData();
+        $templateExcel = storage_path('templates/timereport.template.xlsx');
+        $filename = 'output';
+
+        return $excelService->exportExcel($data, $templateExcel, $filename);
+    }
+
+    public function downloadExcel(ExcelService $excelService)
+    {
+        $data = $this->mockData();
+        $templateExcel = storage_path('templates/timereport.template.xlsx');
+        $filename = 'output';
+
+        return $excelService->downloadExcel($data, $templateExcel, $filename);
+    }
+
+    private function mockData()
+    {
+        return [
             '01-11-2018' =>[
                 ['date' => '01-11-2018', 'work_type' => 'Working', 'project' => 'A', 'start_time' => '08:30', 'end_time' => '17:30', 'total' => 0, 'remarks' => 'Remark 1'],
                 ['date' => '01-11-2018', 'work_type' => 'Working', 'project' => 'A', 'start_time' => '08:30', 'end_time' => '17:30', 'total' => 0, 'remarks' => 'Remark 1'],
@@ -110,8 +128,5 @@ class ExcelController extends Controller
                 ['date' => '30-11-2018', 'work_type' => 'Working', 'project' => 'A', 'start_time' => '08:30', 'end_time' => '17:30', 'total' => 0, 'remarks' => 'Remark 1'],
             ]
         ];
-        $templateExcel = storage_path('templates/timereport.template.xlsx');
-
-        return $excelService->exportExcel($data, $templateExcel);
     }
 }

@@ -94,3 +94,4 @@ Route::get('/popup', function () {
 });
 
 Route::name('export-excel')->get('export-excel', 'ExcelController@exportExcel');
+Route::name('download-excel')->get('download-excel', 'ExcelController@downloadExcel');
