@@ -88,11 +88,13 @@ class ExcelService
             $updateRowFn = function ($indexRow, $recordValues) use ($startRow, $worksheet, $getCellAddressFn, $addConditinalFn, $setConditinalFn, $setDataValidationFn, $rangeDataValidation) {
                 for ($indexCol = 1; $indexCol <= 7; $indexCol++) {
                     $cell = $worksheet->getCellByColumnAndRow($indexCol, $indexRow);
-                    if ($indexCol !== 6 && !Functions::isFormula(LookupRef::cellAddress($indexRow, $indexCol), $cell)) {
+                    $isCellFormula = Functions::isFormula(LookupRef::cellAddress($indexRow, $indexCol), $cell);
+                    // only set values for cells that they do not contain any formulas
+                    if ($indexCol !== 6 && !$isCellFormula) {
                         $cell->setValue($recordValues[$indexCol-1]);
                     }
-
-                    if ($indexCol === 6 && !Functions::isFormula(LookupRef::cellAddress($indexRow, $indexCol), $cell)) {
+                    // set formula for column TOTAL of the new inserted rows
+                    if ($indexCol === 6 && !$isCellFormula) {
                         $worksheet->setCellValue($getCellAddressFn($indexRow, $indexCol), '=('.$getCellAddressFn($indexRow, $indexCol-1).'-'.$getCellAddressFn($indexRow, $indexCol-2).')*24');
                     }
                     // set the data validation for cells if not exist (missing it when reading file)
