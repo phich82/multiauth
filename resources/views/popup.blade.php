@@ -18,11 +18,34 @@
 <script src="{{ asset('js/dialog.js') }}"></script>
 <script>
     // confirm before refresh or close or redirect to other page
-    window.onbeforeunload = function (e) {
-        var message = popup.leave();
-        e.returnValue = message;
-        return message;
-    };
+    // window.onbeforeunload = function (e) {
+    //     var message = popup.leave();
+    //     e.returnValue = message;
+    //     return message;
+    // };
+
+
+
+
+    refreshPageCheck();
+    // notify when refreshing page by pressing F5
+    function refreshPageCheck() {
+        document.querySelector('body').onkeydown = function (e) {
+            if (e.altKey && e.keyCode == 115) { // press ALT+F4 (close browser)
+                e.preventDefault();
+                return popup.confirm('Close Browser', 'Unsaved changes might be loss if closing browser?', function () {
+                    window.location.reload();
+                });
+            }
+
+            if (!e.metaKey && e.keyCode == 116) { // press F5 (refresh)
+                e.preventDefault();
+                return popup.confirm('Refesh Page', 'Unsaved changes might be loss if reloading page?', function () {
+                    window.location.reload();
+                });
+            }
+        }
+    }
 
     function exportExcel() {
         window.location.href = "{{ route('export-excel') }}";

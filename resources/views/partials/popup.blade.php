@@ -19,9 +19,18 @@
     .popup .modal-title i {
         margin-right: 5px !important;
     }
+    .backdrop {
+        width: 100%;
+        height: 100%;
+        position: fixed;
+        left: 0;
+        top: 0;
+        background-color:  rgba(0, 0, 0, 0.2);
+    }
 </style>
 @endpush
-<div class="modal popup" tabindex="-1" role="dialog" style="display: none;">
+<div class="modal popup" tabindex="-1" role="dialog" style="display: none;" data-backdrop="true">
+    <div class="backdrop" onclick="popup.close()" onclick="popup.close()"></div>
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">

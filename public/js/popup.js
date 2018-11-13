@@ -237,14 +237,20 @@ const popup = {
                 }
                 break;
             case 3:
-                title   = arguments[0];
-                message = arguments[1];
-                if (this.checkFn(arguments[2])) {
-                    yes = arguments[2];
-                } else if (this.checkJson(arguments[2])) {
-                    buttons = arguments[2];
+                if (this.checkJson(arguments[0]) && this.checkFn(arguments[1]) && this.checkFn(arguments[2])) {
+                    this._config = arguments[0];
+                    yes = arguments[1];
+                    no  = arguments[2];
                 } else {
-                    throw new Error('Third argument should be a json or a function.');
+                    title   = arguments[0];
+                    message = arguments[1];
+                    if (this.checkFn(arguments[2])) {
+                        yes = arguments[2];
+                    } else if (this.checkJson(arguments[2])) {
+                        buttons = arguments[2];
+                    } else {
+                        throw new Error('Third argument should be a json or a function.');
+                    }
                 }
                 break;
             case 4:
