@@ -93,5 +93,9 @@ Route::get('/popup', function () {
     return view('popup');
 });
 
+Route::get('/autoscroll', function () {
+    return view('autoscroll');
+});
+
 Route::name('export-excel')->get('export-excel', 'ExcelController@exportExcel');
 Route::name('download-excel')->get('download-excel', 'ExcelController@downloadExcel');
