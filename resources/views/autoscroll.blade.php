@@ -78,7 +78,7 @@
             <option>C</option>
         </select>
     </div>
-    <div class="row text-center">
+    <div class="text-center">
         <button class="btn btn-primary btn-submit">Submit</button>
     </div>
 </div>
