@@ -151,7 +151,7 @@ class ExcelService
                 $cell = is_string($pCellCoordinate) ? $worksheet->getCell($pCellCoordinate) : $pCellCoordinate;
                 $cell->getDataValidation()
                      ->setType(DataValidation::TYPE_LIST)
-                     ->setFormula1($rangeData)
+                     ->setFormula1($rangeData) // maxiumum 255 characters, instead of use sheet!A1:B100
                      ->setShowDropDown(true);
             };
 
