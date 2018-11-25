@@ -13,7 +13,7 @@ class ImportSakuraCoupon extends Command
      *
      * @var string
      */
-    protected $signature = 'import:sakura-coupon';
+    protected $signature = 'import:sakura-coupon {--table= : Table name} {--path= : Path to the csv file}';
 
     /**
      * The console command description.
@@ -40,9 +40,10 @@ class ImportSakuraCoupon extends Command
     public function handle()
     {
         // output message for starting
-        $this->info("\tStarting import the sakura coupon codes into sakura_coupons table");
+        $this->info("Starting import the sakura coupon codes into sakura_coupons table");
 
-        $pathCSV = storage_path("data/sales.csv");
+        $pathCSV = !empty($this->option('path'))  ? $this->option('path')  : storage_path("data/sales.csv");
+        $table   = !empty($this->option('table')) ? $this->option('table') : 'sales';
         $delimiter = ",";
 
         if (!file_exists($pathCSV) || !is_readable($pathCSV)) {
@@ -50,7 +51,7 @@ class ImportSakuraCoupon extends Command
             return false;
         }
 
-        echo "\t";
+        DB::table($table)->truncate();
 
         $header = null;
         if (($handle = fopen($pathCSV, 'r')) !== false) {
@@ -60,15 +61,14 @@ class ImportSakuraCoupon extends Command
                         return str_replace(' ', '_', strtolower($item));
                     }, $row);
                 } else {
-                    DB::table('sales')->insert(array_combine($header, $row));
+                    DB::table($table)->insert(array_combine($header, $row));
                     echo ".";
                 }
             }
             fclose($handle);
         }
-        echo "\n";
 
-        $this->info("\tImported completely.");
+        $this->info("\nImported completely.");
     }
 
     private function importManyFiles()
